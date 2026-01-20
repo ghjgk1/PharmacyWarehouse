@@ -1,0 +1,741 @@
+﻿<Page x:Class="PharmacyWarehouse.Pages.DocumentsPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      xmlns:local="clr-namespace:PharmacyWarehouse.Pages"
+      xmlns:sys="clr-namespace:System;assembly=mscorlib"
+      mc:Ignorable="d" 
+      Title="Документы склада">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="16">
+
+            <!-- ЗАГОЛОВОК И КНОПКИ -->
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="📋 Документы склада" Style="{StaticResource H1}"/>
+                    <TextBlock Text="Управление приходными, расходными и списаниями"
+                              Style="{StaticResource BodyText}" 
+                              Margin="0,4,0,16"/>
+
+                    <StackPanel Style="{StaticResource ToolbarPanel}">
+                        <!-- Кнопки создания документов -->
+                        <StackPanel Orientation="Horizontal">
+                            <Button Content="📥 Приход" 
+                                    Style="{StaticResource PrimaryButton}" 
+                                    Width="120" 
+                                    Height="42"
+                                    Click="CreateArrival_Click"
+                                    ToolTip="Создать приходную накладную"/>
+
+                            <Button Content="📤 Расход" 
+                                    Style="{StaticResource PrimaryButton}" 
+                                    Width="120" 
+                                    Height="42"
+                                    Margin="8,0,0,0"
+                                    Click="CreateOutgoing_Click"
+                                    ToolTip="Создать расходную накладную"/>
+
+                            <Button Content="🗑️ Списание" 
+                                    Style="{StaticResource PrimaryButton}" 
+                                    Width="120" 
+                                    Height="42"
+                                    Margin="8,0,0,0"
+                                    Click="CreateWriteOff_Click"
+                                    ToolTip="Создать акт списания"/>
+                        </StackPanel>
+
+                        <!-- Кнопки управления -->
+                        <StackPanel Orientation="Horizontal" Margin="24,0,0,0">
+                            <Button Content="👁️ Просмотреть" 
+                                Style="{StaticResource SecondaryButton}" 
+                                Width="140"
+                                Height="42" 
+                                Margin="0,0,8,0"
+                                Click="ViewDocumentDetails_Click"
+                                ToolTip="Просмотреть полную информацию о документе"
+                                x:Name="btnView"/>
+                            
+                            <Button Content="✏️ Редактировать" 
+                                    Style="{StaticResource SecondaryButton}" 
+                                    Width="140"
+                                    Height="42" 
+                                    Click="EditDocument_Click"
+                                    ToolTip="Редактировать выбранный документ"
+                                    x:Name="btnEdit"/>
+
+                            <Button Content="✏️ Корректировка" 
+                                    Width="140" 
+                                    Height="42"
+                                    Style="{StaticResource SecondaryButton}"
+                                    Margin="8,0,0,0"
+                                    Click="CreateCorrection_Click"
+                                    ToolTip="Создать корректировочный документ">
+                            </Button>
+
+                            <Button Content="✅ Провести" 
+                                    Width="120"
+                                    Height="42" 
+                                    Margin="8,0,0,0"
+                                    Click="ProcessDocument_Click"
+                                    ToolTip="Провести выбранный документ"
+                                    x:Name="btnProcess">
+                                <Button.Style>
+                                    <Style TargetType="Button" BasedOn="{StaticResource SuccessButton}">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Status}" Value="Processed">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Status}" Value="Blocked">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+
+                            
+
+                            <Button Content="🚫 Заблокировать" 
+                                    Width="140"
+                                    Height="42" 
+                                    Margin="8,0,0,0"
+                                    Click="BlockDocument_Click"
+                                    ToolTip="Заблокировать документ"
+                                    x:Name="btnBlock">
+                                <Button.Style>
+                                    <Style TargetType="Button" BasedOn="{StaticResource WarningButton}">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Status}" Value="Draft">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Status}" Value="Processed">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Status}" Value="Blocked">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                        </StackPanel>
+
+                        <Separator Margin="24,0"/>
+
+                        <Button Content="🔄 Обновить" 
+                                Style="{StaticResource IconButton}" 
+                                Click="RefreshDocuments_Click"
+                                ToolTip="Обновить список документов"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- ФИЛЬТРЫ И ПОИСК -->
+            <Border Style="{StaticResource FilterPanel}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="🔍 Фильтры документов" Style="{StaticResource H3}" Margin="0,0,0,12"/>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <!-- Поиск по номеру/клиенту -->
+                            <StackPanel Grid.Column="0" Grid.Row="0" Margin="0,0,12,8">
+                                <TextBlock Text="Поиск (номер, клиент, примечание)" 
+                                          Style="{StaticResource BodyText}" 
+                                          Margin="0,0,0,4"/>
+                                <TextBox x:Name="SearchTextBox"
+                                         TextChanged="SearchTextBox_TextChanged"/>
+                            </StackPanel>
+
+                            <!-- Тип документа -->
+                            <StackPanel Grid.Column="1" Grid.Row="0" Margin="0,0,12,8">
+                                <TextBlock Text="Тип документа" Style="{StaticResource BodyText}" Margin="0,0,0,4"/>
+                                <ComboBox x:Name="cmbDocumentType" 
+                                          SelectionChanged="CmbDocumentType_SelectionChanged">
+                                    <ComboBoxItem Content="Все типы" IsSelected="True"/>
+                                    <ComboBoxItem Content="📥 Приход" Tag="Arrival"/>
+                                    <ComboBoxItem Content="📤 Расход" Tag="Outgoing"/>
+                                    <ComboBoxItem Content="🗑️ Списание" Tag="WriteOff"/>
+                                </ComboBox>
+                            </StackPanel>
+
+                            <!-- Статус документа -->
+                            <StackPanel Grid.Column="2" Grid.Row="0" Margin="0,0,12,8">
+                                <TextBlock Text="Статус" Style="{StaticResource BodyText}" Margin="0,0,0,4"/>
+                                <ComboBox x:Name="cmbStatus" SelectionChanged="CmbStatus_SelectionChanged">
+                                    <ComboBoxItem Content="Все статусы" IsSelected="True"/>
+                                    <ComboBoxItem Content="📝 Черновик" Tag="Draft"/>
+                                    <ComboBoxItem Content="✅ Проведен" Tag="Processed"/>
+                                    <ComboBoxItem Content="🚫 Заблокирован" Tag="Blocked"/>
+                                </ComboBox>
+                            </StackPanel>
+
+                            <!-- Дата -->
+                            <StackPanel Grid.Column="3" Grid.Row="0" Margin="0,0,12,8">
+                                <TextBlock Text="Период" Style="{StaticResource BodyText}" Margin="0,0,0,4"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <DatePicker Grid.Column="0" x:Name="dpDateFrom" 
+                                                SelectedDateChanged="DateRange_Changed"
+                                                ToolTip="Дата с"/>
+                                    <TextBlock Grid.Column="1" Text=" — " 
+                                              VerticalAlignment="Center" 
+                                              Margin="8,0"/>
+                                    <DatePicker Grid.Column="2" x:Name="dpDateTo" 
+                                                SelectedDateChanged="DateRange_Changed"
+                                                ToolTip="Дата по"/>
+                                </Grid>
+                            </StackPanel>
+
+                            <!-- Кнопки фильтров -->
+                            <StackPanel Grid.Column="4" Grid.Row="0" VerticalAlignment="Bottom">
+                                <Button Content="Применить" 
+                                        Style="{StaticResource PrimaryButton}" 
+                                        Width="100" 
+                                        Click="ApplyFilters_Click"
+                                        ToolTip="Применить фильтры"/>
+                                <Button Content="Сбросить" 
+                                        Style="{StaticResource OutlineButton}" 
+                                        Width="100" 
+                                        Margin="0,8,0,0" 
+                                        Click="ResetFilters_Click"
+                                        ToolTip="Сбросить все фильтры"/>
+                            </StackPanel>
+
+                            <!-- Дополнительные фильтры -->
+                            <StackPanel Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="5" Orientation="Horizontal">
+                                <CheckBox x:Name="chkGroupByType" 
+                                          Content="Группировать по типу" 
+                                          Margin="0,0,16,0"
+                                          IsChecked="True"
+                                          Checked="ChkGroupByType_Checked"
+                                          Unchecked="ChkGroupByType_Unchecked"/>
+
+                                <CheckBox x:Name="chkShowZeroAmount" 
+                                          Content="Показывать с нулевой суммой" 
+                                          Margin="0,0,16,0"
+                                          Checked="ChkShowZeroAmount_Checked"
+                                          Unchecked="ChkShowZeroAmount_Unchecked"/>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+
+                    <!-- Статистика документов -->
+                    <Border Grid.Column="1" 
+                           Margin="24,0,0,0"
+                           Padding="16"
+                           Background="{StaticResource BackgroundLightBrush}"
+                           BorderBrush="{StaticResource BorderLightBrush}"
+                           BorderThickness="1"
+                           CornerRadius="4">
+                        <StackPanel>
+                            <TextBlock Text="📊 Статистика документов" Style="{StaticResource H3}" Margin="0,0,0,8"/>
+                            <TextBlock x:Name="txtTotalCount" 
+                                       Text="Всего: 0" 
+                                       Style="{StaticResource BodyText}"
+                                       FontWeight="SemiBold"/>
+                            <TextBlock x:Name="txtArrivalCount" 
+                                       Text="Приход: 0" 
+                                       Style="{StaticResource BodyText}"
+                                       Foreground="{StaticResource AccentGreenBrush}"/>
+                            <TextBlock x:Name="txtOutgoingCount" 
+                                       Text="Расход: 0" 
+                                       Style="{StaticResource BodyText}"/>
+                            <TextBlock x:Name="txtWriteOffCount" 
+                                       Text="Списание: 0" 
+                                       Style="{StaticResource BodyText}"
+                                       Foreground="{StaticResource AccentRedBrush}"/>
+                            <Separator Margin="0,8,0,8"/>
+                            <TextBlock x:Name="txtDraftCount" 
+                                       Text="Черновики: 0" 
+                                       Style="{StaticResource BodyText}"/>
+                            <TextBlock x:Name="txtProcessedCount" 
+                                       Text="Проведенные: 0" 
+                                       Style="{StaticResource BodyText}"
+                                       Foreground="{StaticResource AccentGreenBrush}"/>
+                            <TextBlock x:Name="txtBlockedCount" 
+                                       Text="Заблокированные: 0" 
+                                       Style="{StaticResource BodyText}"
+                                       Foreground="{StaticResource AccentRedBrush}"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- ТАБЛИЦА ДОКУМЕНТОВ С ГРУППИРОВКОЙ -->
+            <Border Style="{StaticResource Card}" Padding="0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Заголовок таблицы -->
+                    <Border Grid.Row="0" Style="{StaticResource CardHeader}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" 
+                                       Text="📋 Список документов" 
+                                       Style="{StaticResource H3}" 
+                                       Foreground="{StaticResource TextWhiteBrush}"/>
+                            <TextBlock Grid.Column="1" 
+                                       x:Name="txtFilterInfo"
+                                       Style="{StaticResource BodyText}" 
+                                       Foreground="{StaticResource TextWhiteBrush}"
+                                       VerticalAlignment="Center"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- DataGrid с группировкой -->
+                    <DataGrid x:Name="dgDocuments" 
+          Grid.Row="1"
+          AutoGenerateColumns="False"  
+          SelectionChanged="DgDocuments_SelectionChanged"
+          CanUserAddRows="False"
+          IsReadOnly="True"
+          SelectionMode="Single">
+
+                        <!-- Стиль для группировки -->
+                        <DataGrid.GroupStyle>
+                            <GroupStyle>
+                                <GroupStyle.ContainerStyle>
+                                    <Style TargetType="{x:Type GroupItem}">
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="{x:Type GroupItem}">
+                                                    <Expander IsExpanded="True" Background="{StaticResource BackgroundLightBrush}">
+                                                        <Expander.Header>
+                                                            <DockPanel>
+                                                                <TextBlock FontWeight="Bold" 
+                                                       Text="{Binding Name}" 
+                                                       Margin="5,0,0,0"
+                                                       Width="Auto"/>
+                                                                <TextBlock FontWeight="Bold" 
+                                                       Text="{Binding ItemCount, StringFormat=' ({0})'}"
+                                                       Margin="5,0,0,0"/>
+                                                            </DockPanel>
+                                                        </Expander.Header>
+                                                        <ItemsPresenter />
+                                                    </Expander>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </GroupStyle.ContainerStyle>
+                            </GroupStyle>
+                        </DataGrid.GroupStyle>
+
+                        <DataGrid.Columns>
+                            <!-- Номер документа -->
+                            <DataGridTextColumn Header="Номер" 
+                            Width="100"
+                            Binding="{Binding Number}">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                        <Setter Property="Margin" Value="10 0"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <!-- Дата документа -->
+                            <DataGridTextColumn Header="Дата" 
+                            Width="100"
+                            Binding="{Binding Date, StringFormat='dd.MM.yyyy'}">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Setter Property="TextAlignment" Value="Center"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <!-- Тип документа с иконкой -->
+                            <DataGridTemplateColumn Header="Тип" Width="120">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding TypeIcon}" 
+                                   FontSize="14"
+                                   Margin="0,0,8,0"/>
+                                            <TextBlock Text="{Binding TypeDisplayName}" 
+                                   VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <!-- Количество позиций -->
+                            <DataGridTextColumn Header="Позиций" 
+                            Width="80"
+                            Binding="{Binding LinesCount, StringFormat='{}{0:N0}'}">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Setter Property="TextAlignment" Value="Center"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <!-- Сумма документа -->
+                            <DataGridTextColumn Header="Сумма" 
+                            Width="120"
+                            Binding="{Binding Amount, StringFormat='{}{0:N2} руб.'}">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Setter Property="TextAlignment" Value="Right"/>
+                                        <Setter Property="Margin" Value="0,0,8,0"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                        <!-- Цвет в зависимости от типа документа -->
+                                        <Style.Triggers>
+                                            <!-- Для прихода - зеленый -->
+                                            <DataTrigger Binding="{Binding Type}" Value="Incoming">
+                                                <Setter Property="Foreground" Value="{StaticResource AccentGreenBrush}"/>
+                                            </DataTrigger>
+                                            <!-- Для расхода - синий -->
+                                            <DataTrigger Binding="{Binding Type}" Value="Outgoing">
+                                                <Setter Property="Foreground" Value="{StaticResource PrimaryBrush}"/>
+                                            </DataTrigger>
+                                            <!-- Для списания - красный -->
+                                            <DataTrigger Binding="{Binding Type}" Value="WriteOff">
+                                                <Setter Property="Foreground" Value="{StaticResource AccentRedBrush}"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <!-- Статус документа -->
+                            <DataGridTemplateColumn Header="Статус" Width="130">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Border CornerRadius="9"
+                            Padding="8,4"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Style.Triggers>
+                                                        <!-- Черновик -->
+                                                        <DataTrigger Binding="{Binding Status}" Value="Draft">
+                                                            <Setter Property="Background" Value="{StaticResource StatusWarningBrush}" />
+                                                        </DataTrigger>
+                                                        <!-- Проведен -->
+                                                        <DataTrigger Binding="{Binding Status}" Value="Processed">
+                                                            <Setter Property="Background" Value="{StaticResource StatusSuccessBrush}" />
+                                                        </DataTrigger>
+                                                        <!-- Заблокирован -->
+                                                        <DataTrigger Binding="{Binding Status}" Value="Blocked">
+                                                            <Setter Property="Background" Value="{StaticResource StatusErrorBrush}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="{Binding StatusIcon}" 
+                                       Margin="0,0,4,0"/>
+                                                <TextBlock Text="{Binding StatusDisplayName}"
+                                       Foreground="White"
+                                       FontSize="11"
+                                       FontWeight="SemiBold"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <!-- Создал -->
+                            <DataGridTextColumn Header="Создал" 
+                            Width="150"
+                            Binding="{Binding CreatedBy}">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                        <Setter Property="ToolTip" Value="{Binding CreatedBy}"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <!-- Дата создания -->
+                            <DataGridTextColumn Header="Создан" 
+                            Width="130"
+                            Binding="{Binding CreatedAt, StringFormat='dd.MM.yyyy HH:mm'}">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Setter Property="TextAlignment" Value="Center"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <!-- Примечание -->
+                            <DataGridTextColumn Header="Примечание" 
+                            Width="250"
+                            Binding="{Binding Notes, FallbackValue='-'}">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                        <Setter Property="ToolTip">
+                                            <Setter.Value>
+                                                <TextBlock Text="{Binding Notes}" 
+                                       TextWrapping="Wrap" 
+                                       MaxWidth="300"/>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                        </DataGrid.Columns>
+
+                        <!-- Стиль строк -->
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow">
+                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                <Setter Property="Height" Value="40"/>
+                                <Style.Triggers>
+                                    <!-- Черновик -->
+                                    <DataTrigger Binding="{Binding Status}" Value="Draft">
+                                        <Setter Property="ToolTip">
+                                            <Setter.Value>
+                                                <TextBlock Text="📝 Черновик - можно редактировать" 
+                                  FontWeight="Bold"/>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </DataTrigger>
+                                    <!-- Заблокирован -->
+                                    <DataTrigger Binding="{Binding Status}" Value="Blocked">
+                                        <Setter Property="ToolTip">
+                                            <Setter.Value>
+                                                <TextBlock Text="🚫 Документ заблокирован" 
+                                  FontWeight="Bold"/>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </DataTrigger>
+                                    <!-- Приходные накладные - зеленая полоса -->
+                                    <DataTrigger Binding="{Binding Type}" Value="Incoming">
+                                        <Setter Property="BorderBrush" Value="{StaticResource AccentGreenBrush}"/>
+                                        <Setter Property="BorderThickness" Value="0,0,4,0"/>
+                                        <Setter Property="ToolTip">
+                                            <Setter.Value>
+                                                <TextBlock>
+                            <Run Text="📥 Приходная накладная"/><LineBreak/>
+                            <Run Text="Поставщик: "/>
+                            <Run Text="{Binding SupplierName}" FontWeight="SemiBold"/>
+                                                </TextBlock>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </DataTrigger>
+                                    <!-- Расходные накладные - синяя полоса -->
+                                    <DataTrigger Binding="{Binding Type}" Value="Outgoing">
+                                        <Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}"/>
+                                        <Setter Property="BorderThickness" Value="0,0,4,0"/>
+                                        <Setter Property="ToolTip">
+                                            <Setter.Value>
+                                                <TextBlock>
+                            <Run Text="📤 Расходная накладная"/><LineBreak/>
+                            <Run Text="Покупатель: "/>
+                            <Run Text="{Binding CustomerName}" FontWeight="SemiBold"/>
+                                                </TextBlock>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </DataTrigger>
+                                    <!-- Списания - красная полоса -->
+                                    <DataTrigger Binding="{Binding Type}" Value="WriteOff">
+                                        <Setter Property="BorderBrush" Value="{StaticResource AccentRedBrush}"/>
+                                        <Setter Property="BorderThickness" Value="0,0,4,0"/>
+                                        <Setter Property="ToolTip">
+                                            <Setter.Value>
+                                                <TextBlock>
+                            <Run Text="🗑️ Акт списания"/><LineBreak/>
+                            <Run Text="Причина: "/>
+                            <Run Text="{Binding WriteOffReason}" FontWeight="SemiBold"/>
+                                                </TextBlock>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </DataTrigger>
+                                    <!-- Корректировки - желтая полоса -->
+                                    <DataTrigger Binding="{Binding Type}" Value="Correction">
+                                        <Setter Property="BorderBrush" Value="{StaticResource StatusWarningBrush}"/>
+                                        <Setter Property="BorderThickness" Value="0,0,4,0"/>
+                                        <Setter Property="ToolTip">
+                                            <Setter.Value>
+                                                <TextBlock>
+                            <Run Text="✏️ Корректировка"/><LineBreak/>
+                            <Run Text="Основание: "/>
+                            <Run Text="{Binding CorrectionReason}" FontWeight="SemiBold"/>
+                                                </TextBlock>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGrid.RowStyle>
+                        
+                        <!-- Контекстное меню -->
+                        <DataGrid.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="✏️ Редактировать" 
+                      Click="EditDocument_Click"/>
+                                <MenuItem Header="👁️ Просмотреть" 
+                      Click="ViewDocument_Click"/>
+                                <Separator/>
+                                <MenuItem Header="✅ Провести" 
+                      Click="ProcessDocument_Click">
+                                    <MenuItem.Style>
+                                        <Style TargetType="MenuItem">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Status}" Value="Processed">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding Status}" Value="Blocked">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </MenuItem.Style>
+                                </MenuItem>
+                                <MenuItem Header="🚫 Заблокировать" 
+                      Click="BlockDocument_Click">
+                                    <MenuItem.Style>
+                                        <Style TargetType="MenuItem">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Status}" Value="Blocked">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </MenuItem.Style>
+                                </MenuItem>
+                                <Separator/>
+                                <MenuItem Header="📄 Печать" 
+                      Click="PrintDocument_Click"/>
+                                <MenuItem Header="📋 Копировать номер" 
+                      Click="CopyNumber_Click"/>
+                                <Separator/>
+                                <MenuItem Header="🗑️ Удалить" 
+                      Click="DeleteDocument_Click">
+                                    <MenuItem.Style>
+                                        <Style TargetType="MenuItem">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Status}" Value="Processed">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding Status}" Value="Blocked">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </MenuItem.Style>
+                                </MenuItem>
+                            </ContextMenu>
+                        </DataGrid.ContextMenu>
+                    </DataGrid>
+                    
+                    <!-- ПАГИНАЦИЯ -->
+                    <Border Grid.Row="2" 
+                           Background="{StaticResource BackgroundLightBrush}"
+                           BorderBrush="{StaticResource BorderLightBrush}"
+                           BorderThickness="0,1,0,0"
+                           Padding="12">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Выбор размера страницы -->
+                            <StackPanel Grid.Column="1" 
+                                       Orientation="Horizontal" 
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,16,0">
+                                <TextBlock Text="Показывать по:" 
+                                          VerticalAlignment="Center" 
+                                          Margin="0,0,8,0"/>
+                                <ComboBox x:Name="cmbPageSize" 
+                                          Width="80"
+                                          SelectionChanged="CmbPageSize_SelectionChanged">
+                                    <ComboBoxItem Content="10" Tag="10"/>
+                                    <ComboBoxItem Content="25" Tag="25" IsSelected="True"/>
+                                    <ComboBoxItem Content="50" Tag="50"/>
+                                    <ComboBoxItem Content="100" Tag="100"/>
+                                    <ComboBoxItem Content="Все" Tag="0"/>
+                                </ComboBox>
+                            </StackPanel>
+
+                            <!-- Пагинация -->
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button Content="⏮️" 
+                                        Style="{StaticResource IconButton}" 
+                                        ToolTip="В начало"
+                                        Click="FirstPage_Click"/>
+                                <Button Content="◀️" 
+                                        Style="{StaticResource IconButton}" 
+                                        ToolTip="Предыдущая страница"
+                                        Click="PrevPage_Click"
+                                        Margin="4,0,0,0"/>
+
+                                <TextBlock Text="Страница " 
+                                          VerticalAlignment="Center" 
+                                          Margin="8,0,4,0"/>
+                                <TextBox x:Name="txtCurrentPage" 
+                                         Text="1" 
+                                         Width="40" 
+                                         TextAlignment="Center" 
+                                         VerticalAlignment="Center"
+                                         TextChanged="TxtCurrentPage_TextChanged"/>
+                                <TextBlock Text=" из " 
+                                          VerticalAlignment="Center" 
+                                          Margin="4,0,4,0"/>
+                                <TextBlock x:Name="txtTotalPages" 
+                                           Text="1" 
+                                           VerticalAlignment="Center"
+                                           FontWeight="SemiBold"/>
+
+                                <Button Content="▶️" 
+                                        Style="{StaticResource IconButton}" 
+                                        ToolTip="Следующая страница"
+                                        Click="NextPage_Click"
+                                        Margin="8,0,4,0"/>
+                                <Button Content="⏭️" 
+                                        Style="{StaticResource IconButton}" 
+                                        ToolTip="В конец"
+                                        Click="LastPage_Click"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

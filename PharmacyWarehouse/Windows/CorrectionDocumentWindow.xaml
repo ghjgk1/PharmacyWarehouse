@@ -1,0 +1,477 @@
+﻿<Window x:Class="PharmacyWarehouse.Windows.CorrectionDocumentWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:PharmacyWarehouse.Windows"
+        mc:Ignorable="d"
+        Title="Корректировочный документ"
+        WindowStartupLocation="CenterOwner"
+        Height="800"
+        Width="1200"
+        MinHeight="700"
+        MinWidth="1000"
+        WindowStyle="SingleBorderWindow"
+        ResizeMode="CanResize">
+
+    <Window.Resources>
+        <!-- Конвертер для видимости -->
+        <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+
+        <SolidColorBrush x:Key="GreenBrush" Color="Green"/>
+        <SolidColorBrush x:Key="RedBrush" Color="Red"/>
+        <SolidColorBrush x:Key="DarkBrush" Color="Black"/>
+        <SolidColorBrush x:Key="LightGrayBrush" Color="#F5F5F5"/>
+        <SolidColorBrush x:Key="BorderBrush" Color="#CCCCCC"/>
+        <SolidColorBrush x:Key="PrimaryBrush" Color="#2C3E50"/>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- ЗАГОЛОВОК И ИНФОРМАЦИЯ О ДОКУМЕНТЕ -->
+        <Border Grid.Row="0"
+                Background="{StaticResource LightGrayBrush}"
+                BorderBrush="{StaticResource BorderBrush}"
+                BorderThickness="0,0,0,1"
+                Padding="16">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Основная информация -->
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="✏️" FontSize="24" Margin="0,0,8,0"/>
+                        <TextBlock Text="Корректировочный документ" 
+                                  FontSize="20" 
+                                  FontWeight="Bold"
+                                  Foreground="{StaticResource PrimaryBrush}"/>
+                    </StackPanel>
+
+                    <!-- Информация о базовом документе -->
+                    <Border CornerRadius="4"
+                            Background="{StaticResource LightGrayBrush}"
+                            Padding="12"
+                            Margin="0,8,0,0">
+                        <StackPanel>
+                            <TextBlock Text="Основание для корректировки:" 
+                                      FontSize="14"
+                                      FontWeight="SemiBold"
+                                      Margin="0,0,0,8"/>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Grid.Column="0" 
+                                          Text="Документ:" 
+                                          FontSize="12"
+                                          FontWeight="SemiBold"/>
+                                <TextBlock Grid.Column="1" 
+                                          x:Name="txtBaseDocument" 
+                                          FontSize="12"
+                                          Margin="8,0,16,0"/>
+
+                                <TextBlock Grid.Column="2" 
+                                          Text="Дата:" 
+                                          FontSize="12"
+                                          FontWeight="SemiBold"/>
+                                <TextBlock Grid.Column="3" 
+                                          x:Name="txtBaseDate" 
+                                          FontSize="12"
+                                          Margin="8,0,16,0"/>
+
+                                <TextBlock Grid.Column="4" 
+                                          Text="Сумма:" 
+                                          FontSize="12"
+                                          FontWeight="SemiBold"/>
+                                <TextBlock Grid.Column="5" 
+                                          x:Name="txtBaseAmount" 
+                                          FontSize="12"
+                                          Margin="8,0,0,0"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- Информация о корректировке -->
+                <Border Grid.Column="1" 
+                        Background="{StaticResource LightGrayBrush}"
+                        CornerRadius="4"
+                        Padding="12">
+                    <StackPanel MinWidth="200">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="№" 
+                                      FontSize="12"
+                                      FontWeight="SemiBold"/>
+                            <TextBlock x:Name="txtDocNumber" 
+                                      Text="Новый"
+                                      FontSize="12"
+                                      FontWeight="Bold"
+                                      Margin="4,0,16,0"/>
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <TextBlock Text="Дата:" 
+                                      FontSize="12"
+                                      FontWeight="SemiBold"/>
+                            <DatePicker x:Name="dpDocDate" 
+                                       Width="120" 
+                                       Margin="8,0,0,0"
+                                       SelectedDateFormat="Short"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- ОСНОВНОЕ СОДЕРЖИМОЕ -->
+        <Grid Grid.Row="1" Margin="16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1*"/>
+                <ColumnDefinition Width="2*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- ЛЕВАЯ ПАНЕЛЬ: НАСТРОЙКИ -->
+            <Border Grid.Column="0"
+                    BorderBrush="{StaticResource BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="4"
+                    Padding="16"
+                    Margin="0,0,8,0">
+                <StackPanel>
+                    <!-- Причина документа -->
+                    <StackPanel>
+                        <TextBlock Text="📋 Причина корректировки:" 
+                                  FontSize="14"
+                                  FontWeight="SemiBold"
+                                  Margin="0,0,0,8"/>
+                        <TextBox x:Name="txtDocumentReason" 
+                                TextWrapping="Wrap"
+                                AcceptsReturn="True"
+                                Height="80"
+                                VerticalScrollBarVisibility="Auto"/>
+                    </StackPanel>
+
+                    <!-- Тип корректировки -->
+                    <StackPanel Margin="0,16,0,0">
+                        <TextBlock Text="🎯 Тип корректировки:" 
+                                  FontSize="14"
+                                  FontWeight="SemiBold"
+                                  Margin="0,0,0,8"/>
+                        <ComboBox x:Name="cmbCorrectionType" 
+                                  Height="36"
+                                  SelectionChanged="CmbCorrectionType_SelectionChanged">
+                            <ComboBoxItem Content="📦 Количество" IsSelected="True" Tag="Quantity"/>
+                            <ComboBoxItem Content="💰 Цена" Tag="Price"/>
+                            <ComboBoxItem Content="📅 Срок годности" Tag="ExpirationDate"/>
+                        </ComboBox>
+                    </StackPanel>
+
+                    <!-- Управление -->
+                    <StackPanel Margin="0,16,0,0">
+                        <Button Content="🔄 Пересчитать все" 
+                                Height="36"
+                                Margin="0,0,0,8"
+                                Click="BtnRecalculate_Click"/>
+
+                        <Button Content="❌ Сбросить все" 
+                                Height="36"
+                                Click="BtnResetChanges_Click"/>
+                    </StackPanel>
+
+                    <!-- Статистика -->
+                    <Border Background="{StaticResource LightGrayBrush}"
+                            CornerRadius="4"
+                            Padding="12"
+                            Margin="0,16,0,0">
+                        <StackPanel>
+                            <TextBlock Text="📊 Статистика:" 
+                                      FontSize="14"
+                                      FontWeight="SemiBold"
+                                      Margin="0,0,0,8"/>
+
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Товаров:" FontSize="12"/>
+                                    <TextBlock x:Name="txtItemsCount" 
+                                              Text="0"
+                                              FontSize="12"
+                                              FontWeight="SemiBold"
+                                              Margin="8,0,0,0"/>
+                                </StackPanel>
+
+                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                    <TextBlock Text="Изменено:" FontSize="12"/>
+                                    <TextBlock x:Name="txtChangedItemsCount" 
+                                              Text="0"
+                                              FontSize="12"
+                                              FontWeight="SemiBold"
+                                              Foreground="{StaticResource GreenBrush}"
+                                              Margin="8,0,0,0"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <!-- ПРАВАЯ ПАНЕЛЬ: ТОВАРЫ -->
+            <Border Grid.Column="1"
+                    Background="White"
+                    BorderBrush="{StaticResource BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="4">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Заголовок -->
+                    <Border Grid.Row="0" 
+                            BorderBrush="{StaticResource BorderBrush}"
+                            BorderThickness="0,0,0,1"
+                            Padding="12">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="📦 Товары для корректировки" 
+                                      FontSize="16"
+                                      FontWeight="Bold"/>
+                            <TextBlock x:Name="txtProductCount" 
+                                      Text=" (0)"
+                                      FontSize="14"
+                                      FontWeight="SemiBold"
+                                      Margin="4,0,0,0"
+                                      VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Список товаров -->
+                    <ScrollViewer Grid.Row="1" 
+                                  VerticalScrollBarVisibility="Auto" 
+                                  Padding="12">
+                        <ItemsControl x:Name="itemsProducts">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border CornerRadius="4"
+                                            BorderBrush="{StaticResource BorderBrush}"
+                                            BorderThickness="1"
+                                            Padding="12"
+                                            Margin="0,0,0,8"
+                                            Background="{StaticResource LightGrayBrush}">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+
+                                            <!-- Информация о товаре -->
+                                            <Grid Grid.Row="0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <StackPanel Grid.Column="0">
+                                                    <TextBlock Text="{Binding ProductName}" 
+                                                              FontWeight="SemiBold"
+                                                              TextWrapping="Wrap"/>
+
+                                                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                                        <TextBlock Text="Ед. изм:" 
+                                                                  FontSize="12"/>
+                                                        <TextBlock Text="{Binding Unit}" 
+                                                                  FontSize="12"
+                                                                  FontWeight="SemiBold"
+                                                                  Margin="4,0,16,0"/>
+                                                    </StackPanel>
+                                                </StackPanel>
+
+                                                <!-- Кнопки действий -->
+                                                <StackPanel Grid.Column="1" 
+                                                           Orientation="Horizontal"
+                                                           VerticalAlignment="Center">
+                                                    <Button Content="↩️" 
+                                                            Width="28"
+                                                            Height="28"
+                                                            Click="BtnResetItem_Click"
+                                                            CommandParameter="{Binding}"
+                                                            ToolTip="Вернуть исходное значение"
+                                                            Margin="0,0,8,0"/>
+
+                                                    <Button Content="🗑️" 
+                                                            Width="28"
+                                                            Height="28"
+                                                            Click="BtnRemoveItem_Click"
+                                                            CommandParameter="{Binding}"
+                                                            ToolTip="Удалить из корректировки"/>
+                                                </StackPanel>
+                                            </Grid>
+
+                                            <!-- Поле для корректировки (динамическое) -->
+                                            <Border Grid.Row="1" 
+                                                    CornerRadius="4"
+                                                    Padding="8"
+                                                    Margin="0,8,0,0"
+                                                    Background="White">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <!-- Текущее значение -->
+                                                    <StackPanel Grid.Column="0">
+                                                        <TextBlock Text="Было:" 
+                                                                  FontSize="12"
+                                                                  FontWeight="SemiBold"/>
+                                                        <TextBlock Text="{Binding CurrentValueDisplay}" 
+                                                                  FontSize="12"
+                                                                  FontWeight="SemiBold"
+                                                                  Margin="0,4,0,0"/>
+                                                    </StackPanel>
+
+                                                    <!-- Стрелка -->
+                                                    <TextBlock Grid.Column="1" 
+                                                              Text="→" 
+                                                              HorizontalAlignment="Center"
+                                                              VerticalAlignment="Center"
+                                                              FontSize="16"
+                                                              Margin="16,0"/>
+
+                                                    <!-- Новое значение -->
+                                                    <StackPanel Grid.Column="2">
+                                                        <TextBlock Text="Стало:" 
+                                                                  FontSize="12"
+                                                                  FontWeight="SemiBold"/>
+
+                                                        <!-- КОЛИЧЕСТВО -->
+                                                        <TextBox Text="{Binding NewQuantity, UpdateSourceTrigger=PropertyChanged, StringFormat='{}{0:N0}'}" 
+                                                                Width="80"
+                                                                Margin="0,4,0,0"
+                                                                Visibility="{Binding IsQuantityCorrection, Converter={StaticResource BoolToVisibilityConverter}}"/>
+
+                                                        <!-- ЦЕНА -->
+                                                        <TextBox Text="{Binding NewPrice, UpdateSourceTrigger=PropertyChanged, StringFormat='{}{0:N2}'}" 
+                                                                Width="80"
+                                                                Margin="0,4,0,0"
+                                                                Visibility="{Binding IsPriceCorrection, Converter={StaticResource BoolToVisibilityConverter}}"/>
+
+                                                        <!-- СРОК ГОДНОСТИ -->
+                                                        <DatePicker SelectedDate="{Binding NewExpirationDateDateTime, UpdateSourceTrigger=PropertyChanged}"
+                                                                   Width="120"
+                                                                   Margin="0,4,0,0"
+                                                                   Visibility="{Binding IsExpirationDateCorrection, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+
+                    <!-- ИТОГО -->
+                    <Border Grid.Row="2" 
+                            BorderBrush="{StaticResource BorderBrush}"
+                            BorderThickness="0,1,0,0"
+                            Padding="12">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Примечание -->
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="📝 Примечание к документу:" 
+                                          FontSize="14"
+                                          FontWeight="SemiBold"
+                                          Margin="0,0,0,4"/>
+                                <TextBox x:Name="txtNotes" 
+                                        TextWrapping="Wrap"
+                                        AcceptsReturn="True"
+                                        Height="40"
+                                        VerticalScrollBarVisibility="Auto"/>
+                            </StackPanel>
+
+                            <!-- Итоговая сумма -->
+                            <Border Grid.Column="1" 
+                                    BorderBrush="{StaticResource BorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="4"
+                                    Padding="12,8"
+                                    Margin="16,0,0,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="💰 Итог по корректировке:" 
+                                              FontSize="14"
+                                              FontWeight="SemiBold"
+                                              VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="txtTotalCorrection" 
+                                              Text="0.00 руб."
+                                              FontWeight="Bold"
+                                              FontSize="16"
+                                              Margin="12,0,0,0"
+                                              VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- ПАНЕЛЬ ДЕЙСТВИЙ -->
+        <Border Grid.Row="2"
+                BorderBrush="{StaticResource BorderBrush}"
+                BorderThickness="0,1,0,0"
+                Padding="16">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Информация -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="💡" FontSize="16" Margin="0,0,8,0"/>
+                    <TextBlock Text="Документ будет проведен автоматически. Проверьте корректность изменений."
+                              FontSize="12"
+                              TextWrapping="Wrap"/>
+                </StackPanel>
+
+                <!-- Кнопки действий -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button Content="❌ Отмена" 
+                           Width="120"
+                           Height="42"
+                           Style="{StaticResource OutlineButton}"
+                           Click="BtnCancel_Click"/>
+                    <Button Content="✅ Провести корректировку" 
+                           Width="200"
+                           Height="42"
+                           Style="{StaticResource PrimaryButton}"
+                           Margin="12,0,0,0"
+                           Foreground="White"
+                           Click="BtnSaveProcess_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

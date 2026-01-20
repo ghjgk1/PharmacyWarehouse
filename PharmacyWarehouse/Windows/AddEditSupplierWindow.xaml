@@ -1,0 +1,152 @@
+﻿<Window x:Class="PharmacyWarehouse.Windows.AddEditSupplierWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:PharmacyWarehouse.Windows"
+        mc:Ignorable="d"
+        Title="{Binding WindowTitle}" 
+        Height="650" 
+        Width="550"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="{StaticResource BackgroundDarkBrush}">
+
+    <Grid Margin="0">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Заголовок -->
+        <Border Grid.Row="0" 
+                Background="{StaticResource PrimaryBrush}" 
+                Padding="20,16">
+            <TextBlock Text="{Binding WindowTitle}" 
+                      Style="{StaticResource H1}" 
+                      Foreground="{StaticResource TextWhiteBrush}"/>
+        </Border>
+
+        <!-- Форма -->
+        <ScrollViewer Grid.Row="1" 
+                     VerticalScrollBarVisibility="Auto"
+                     Padding="20">
+            <StackPanel>
+                <!-- Название -->
+                <StackPanel Margin="0,0,0,16">
+                    <TextBlock Text="Название поставщика*" 
+                              Style="{StaticResource H3}"
+                              Margin="0,0,0,4"/>
+                    <TextBox Text="{Binding Supplier.Name, UpdateSourceTrigger=PropertyChanged}"
+                            MaxLength="200"
+                            Height="40"/>
+                </StackPanel>
+
+                <!-- ИНН -->
+                <StackPanel Margin="0,0,0,16">
+                    <TextBlock Text="ИНН*" 
+                              Style="{StaticResource H3}"
+                              Margin="0,0,0,4"/>
+                    <TextBox Text="{Binding Supplier.Inn, UpdateSourceTrigger=PropertyChanged}"
+                            MaxLength="12"
+                            Height="40"/>
+                </StackPanel>
+
+                <!-- Контактное лицо -->
+                <StackPanel Margin="0,0,0,16">
+                    <TextBlock Text="Контактное лицо*" 
+                              Style="{StaticResource H3}"
+                              Margin="0,0,0,4"/>
+                    <TextBox Text="{Binding Supplier.ContactPerson, UpdateSourceTrigger=PropertyChanged}"
+                            MaxLength="100"
+                            Height="40"/>
+                </StackPanel>
+
+                <!-- Телефон -->
+                <StackPanel Margin="0,0,0,16">
+                    <TextBlock Text="Телефон*" 
+                              Style="{StaticResource H3}"
+                              Margin="0,0,0,4"/>
+                    <TextBox Text="{Binding Supplier.Phone, UpdateSourceTrigger=PropertyChanged}"
+                            MaxLength="20"
+                            Height="40"/>
+                </StackPanel>
+
+                <!-- Адрес -->
+                <StackPanel Margin="0,0,0,16">
+                    <TextBlock Text="Адрес*" 
+                              Style="{StaticResource H3}"
+                              Margin="0,0,0,4"/>
+                    <TextBox Text="{Binding Supplier.Address}" 
+                            AcceptsReturn="True"
+                            TextWrapping="Wrap"
+                            Height="80"
+                            VerticalScrollBarVisibility="Auto"/>
+                </StackPanel>
+
+                <!-- Банковские реквизиты -->
+                <Border BorderBrush="{StaticResource BorderLightBrush}"
+                       BorderThickness="1"
+                       CornerRadius="4"
+                       Padding="16"
+                       Margin="0,0,0,16">
+                    <StackPanel>
+                        <TextBlock Text="🏦 Банковские реквизиты" 
+                                  Style="{StaticResource H3}"
+                                  Margin="0,0,0,12"/>
+
+                        <!-- Название банка -->
+                        <StackPanel Margin="0,0,0,12">
+                            <TextBlock Text="Название банка*" 
+                                      Style="{StaticResource BodyText}"
+                                      FontWeight="SemiBold"/>
+                            <TextBox Text="{Binding Supplier.BankName, UpdateSourceTrigger=PropertyChanged}"
+                                    MaxLength="200"
+                                    Height="40"/>
+                        </StackPanel>
+
+                        <!-- Расчетный счет -->
+                        <StackPanel>
+                            <TextBlock Text="Расчетный счет*" 
+                                      Style="{StaticResource BodyText}"
+                                      FontWeight="SemiBold"/>
+                            <TextBox Text="{Binding Supplier.BankAccount, UpdateSourceTrigger=PropertyChanged}"
+                                    MaxLength="20"
+                                    Height="40"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Активность -->
+                <CheckBox Content="Активный поставщик" 
+                         IsChecked="{Binding Supplier.IsActive}"
+                         Margin="0,0,0,16"
+                         FontSize="14"
+                         FontWeight="SemiBold"
+                         Foreground="{StaticResource TextDarkBrush}"/>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Кнопки -->
+        <Border Grid.Row="2" 
+               Background="{StaticResource GrayLightestBrush}" 
+               BorderBrush="{StaticResource BorderLightBrush}"
+               BorderThickness="0,1,0,0"
+               Padding="20,16">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="Сохранить" 
+                       Click="Save_Click"
+                       Style="{StaticResource PrimaryButton}" 
+                       Width="120"
+                       Height="40"/>
+                <Button Content="Отмена" 
+                       IsCancel="True"
+                       Style="{StaticResource OutlineButton}" 
+                       Width="120"
+                       Height="40"
+                       Margin="12,0,0,0"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

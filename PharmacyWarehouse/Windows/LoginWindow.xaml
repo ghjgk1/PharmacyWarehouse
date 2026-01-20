@@ -1,0 +1,72 @@
+﻿<Window x:Class="PharmacyWarehouse.LoginWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Вход" 
+        Height="500" 
+        Width="400"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        WindowStyle="None">
+
+    <Grid Background="{StaticResource BackgroundDarkBrush}">
+        <StackPanel VerticalAlignment="Center" Margin="40">
+
+            <!-- Логотип -->
+            <!-- Заголовок -->
+            <StackPanel Margin="0,0,0,30" HorizontalAlignment="Center">
+                <TextBlock Text="🏥" FontSize="48" HorizontalAlignment="Center"/>
+                <TextBlock Text="АПТЕЧНЫЙ СКЛАД" 
+             Style="{StaticResource H2}" 
+             HorizontalAlignment="Center"
+             Foreground="{StaticResource TextDarkBrush}"/>
+                <TextBlock Text="Система учета лекарств"
+             Style="{StaticResource Caption}"
+             HorizontalAlignment="Center"
+             Foreground="{StaticResource GrayLighterBrush}"/>
+            </StackPanel>
+
+            <!-- Форма входа -->
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="Вход в систему" 
+                               Style="{StaticResource H3}"
+                               Margin="0,0,0,15"/>
+
+                    <!-- Логин -->
+                    <TextBlock Text="Логин:" Style="{StaticResource BodyText}"/>
+                    <TextBox x:Name="LoginTextBox" Text=""/>
+
+                    <!-- Пароль -->
+                    <TextBlock Text="Пароль:" Style="{StaticResource BodyText}" Margin="0,5,0,0"/>
+                    <PasswordBox x:Name="PasswordBox" Password=""/>
+
+                    <!-- Ошибка -->
+                    <TextBlock x:Name="ErrorText" 
+                               Foreground="{StaticResource AccentRedBrush}"
+                               Visibility="Collapsed"
+                               Margin="0,10,0,0"/>
+
+                    <!-- Кнопки -->
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="Войти" 
+                                Style="{StaticResource PrimaryButton}"
+                                Margin="10,0,0,0"
+                                Height="38"
+                                Click="LoginButton_Click"
+                                IsDefault="True"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+        </StackPanel>
+
+        <!-- Закрытие -->
+        <Button Style="{StaticResource IconButton}" 
+                HorizontalAlignment="Right" 
+                VerticalAlignment="Top"
+                Margin="0,10,10,0"
+                Click="CloseButton_Click">
+            <TextBlock Text="✕" FontSize="16"/>
+        </Button>
+    </Grid>
+</Window>

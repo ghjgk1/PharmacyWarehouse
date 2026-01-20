@@ -1,0 +1,479 @@
+﻿<Page x:Class="PharmacyWarehouse.Pages.OutgoingPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+      xmlns:local="clr-namespace:PharmacyWarehouse.Pages"
+      mc:Ignorable="d" 
+      Title="Расход товара">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="16">
+
+            <!-- ЗАГОЛОВОК И ИНФОРМАЦИЯ О ДОКУМЕНТЕ -->
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="📤 Расходная накладная" Style="{StaticResource H1}"/>
+                    <TextBlock Text="Оформление отпуска товара покупателю"
+                              Style="{StaticResource BodyText}" 
+                              Margin="0,4,0,16"/>
+
+                    <!-- Панель инструментов -->
+                    <StackPanel Style="{StaticResource ToolbarPanel}">
+                        <Button Content="📄 Сохранить черновик" 
+                                Style="{StaticResource OutlineButton}" 
+                                Width="160"
+                                Height="42"
+                                Click="SaveDraft_Click"/>
+
+                        <Button Content="✅ Провести документ" 
+                                Style="{StaticResource SuccessButton}" 
+                                Width="160"
+                                Height="42"
+                                Margin="8,0,0,0"
+                                Click="ProcessDocument_Click"/>
+
+                        <Button Content="🖨️ Печать" 
+                                Style="{StaticResource SecondaryButton}" 
+                                Width="100"
+                                Height="42"
+                                Margin="8,0,0,0"
+                                Click="PrintDocument_Click"/>
+
+                        <Button Content="🗑️ Отмена" 
+                                Style="{StaticResource DangerButton}" 
+                                Width="100"
+                                Height="42"
+                                Margin="8,0,0,0"
+                                Click="CancelDocument_Click"/>
+
+                        <Separator Margin="24,0"/>
+
+                        <Button Content="📋 Копировать номер" 
+                                Style="{StaticResource IconButton}"
+                                Click="CopyNumber_Click"/>
+
+                        <Button Content="📊 Статистика" 
+                                Style="{StaticResource IconButton}"
+                                Click="ShowStatistics_Click"/>
+                    </StackPanel>
+
+                    <!-- Основная информация о документе -->
+                    <Border Style="{StaticResource FilterPanel}" Margin="0,16,0,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Левая колонка: номер и дата -->
+                            <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <!-- Номер документа -->
+                                    <TextBlock Text="Номер документа:" 
+                                              Grid.Row="0" Grid.Column="0"
+                                              Style="{StaticResource BodyText}" 
+                                              FontWeight="SemiBold"/>
+                                    <TextBox x:Name="txtDocNumber" 
+                                            Grid.Row="0" Grid.Column="1"
+                                            Text="Новый"
+                                            FontWeight="SemiBold"
+                                            Foreground="{StaticResource PrimaryBrush}"
+                                            IsReadOnly="True"
+                                            BorderThickness="0"
+                                            Background="Transparent"/>
+
+                                    <!-- Дата документа -->
+                                    <TextBlock Text="Дата документа:" 
+                                              Grid.Row="1" Grid.Column="0"
+                                              Style="{StaticResource BodyText}" 
+                                              FontWeight="SemiBold"
+                                              Margin="0,12,0,0"/>
+                                    <DatePicker x:Name="dpDocDate" 
+                                               Grid.Row="1" Grid.Column="1"
+                                               Margin="0,12,0,0"/>
+                                </Grid>
+                            </StackPanel>
+
+                            <!-- Средняя колонка: информация о клиенте (появляется при выборе рецептурного товара) -->
+                            <StackPanel Grid.Column="1" Margin="0,0,16,0">
+                                <Border x:Name="customerInfoPanel" 
+                                        Style="{StaticResource InfoBox}"
+                                        Visibility="Collapsed">
+                                    <StackPanel>
+                                        <TextBlock Text="👤 Информация о клиенте" 
+                                                  Style="{StaticResource H3}" 
+                                                  Margin="0,0,0,12"/>
+
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+
+                                            <!-- ФИО клиента -->
+                                            <TextBlock Text="ФИО клиента:*" 
+                                                      Grid.Row="0" Grid.Column="0"
+                                                      Style="{StaticResource BodyText}" 
+                                                      FontWeight="SemiBold"/>
+                                            <TextBox x:Name="txtCustomerName" 
+                                                    Grid.Row="0" Grid.Column="1"
+                                                    Margin="8,0,0,0"/>
+
+                                            <!-- Номер рецепта -->
+                                            <TextBlock Text="Номер рецепта:*" 
+                                                      Grid.Row="1" Grid.Column="0"
+                                                      Style="{StaticResource BodyText}" 
+                                                      FontWeight="SemiBold"
+                                                      Margin="0,12,0,0"/>
+                                            <TextBox x:Name="txtPrescriptionNumber" 
+                                                    Grid.Row="1" Grid.Column="1"
+                                                    Margin="8,12,0,0"/>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Примечание -->
+                                <TextBlock Text="Примечание:" 
+                                          Style="{StaticResource BodyText}" 
+                                          FontWeight="SemiBold"
+                                          Margin="0,12,0,0"/>
+                                <TextBox x:Name="txtNotes" 
+                                        Margin="0,8,0,0"/>
+                            </StackPanel>
+
+                            <!-- Правая колонка: статус и сумма -->
+                            <Border Grid.Column="2" 
+                                   Style="{StaticResource InfoBox}"
+                                   Width="200">
+                                <StackPanel>
+                                    <TextBlock Text="Позиций:" 
+                                              Style="{StaticResource BodyText}"/>
+                                    <TextBlock x:Name="txtItemsCount" 
+                                              Text="0"
+                                              Style="{StaticResource BodyText}"
+                                              FontWeight="SemiBold"/>
+
+                                    <TextBlock Text="Общее количество:" 
+                                              Style="{StaticResource BodyText}"
+                                              Margin="0,8,0,0"/>
+                                    <TextBlock x:Name="txtTotalQuantity" 
+                                              Text="0"
+                                              Style="{StaticResource BodyText}"
+                                              FontWeight="SemiBold"/>
+
+                                    <TextBlock Text="Общая сумма:" 
+                                              Style="{StaticResource BodyText}"
+                                              Margin="0,8,0,0"/>
+                                    <TextBlock x:Name="txtTotalAmount" 
+                                              Text="0.00"
+                                              FontSize="18"
+                                              FontWeight="Bold"
+                                              Foreground="{StaticResource AccentGreenBrush}"/>
+                                    <TextBlock Text="руб." 
+                                              Style="{StaticResource Caption}"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </Border>
+                </StackPanel>
+            </Border>
+            <Grid Margin="0,16,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="2*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- ЛЕВАЯ КОЛОНКА: ДОБАВЛЕНИЕ ТОВАРА -->
+                <Border Style="{StaticResource Card}" Padding="0" Grid.Column="0" Margin="0,0,8,0">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Заголовок -->
+                        <Border Grid.Row="0" Style="{StaticResource CardHeader}">
+                            <TextBlock Text="➕ Добавить товар" 
+                          Style="{StaticResource H3}" 
+                          Foreground="{StaticResource TextWhiteBrush}"/>
+                        </Border>
+
+                        <!-- Форма добавления -->
+                        <Border Grid.Row="1" 
+                   Background="{StaticResource BackgroundLightBrush}"
+                   Padding="16">
+                            <StackPanel>
+                                <!-- Товар -->
+                                <TextBlock Text="Товар *" 
+                              Style="{StaticResource BodyText}" 
+                              FontWeight="SemiBold"
+                              Margin="0,0,0,4"/>
+                                <ComboBox x:Name="cmbProduct" 
+                                         Grid.Column="0" Grid.Row="1"
+                                         DisplayMemberPath="Name"
+                                         IsEditable="True"
+                                         IsTextSearchEnabled="True"
+                                         StaysOpenOnEdit="True"
+                                         TextSearch.TextPath="Name"
+                                         ItemsSource="{Binding FilteredProducts}"
+                                         Text="{Binding ProductSearchText, UpdateSourceTrigger=PropertyChanged}"
+                                         SelectionChanged="CmbProduct_SelectionChanged"
+                                         Height="36"
+                                         Margin="0,0,8,0">
+                                    <ComboBox.Style>
+                                        <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
+                                            <Setter Property="ItemTemplate">
+                                                <Setter.Value>
+                                                    <DataTemplate>
+                                                        <StackPanel>
+                                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </ComboBox.Style>
+                                </ComboBox>
+                                <!-- Количество -->
+                                <TextBlock Text="Количество *" 
+                              Style="{StaticResource BodyText}" 
+                              FontWeight="SemiBold"
+                              Margin="0,0,0,4"/>
+                                <TextBox x:Name="txtQuantity" 
+                            TextAlignment="Right"
+                            Margin="0,0,0,12"
+                            Height="36"
+                            Text="1"
+                            PreviewTextInput="NumberValidationTextBox"
+                            TextChanged="TxtQuantity_TextChanged"/>
+
+                                <!-- Цена и сумма -->
+                                <Grid Margin="0,0,0,16">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                                        <TextBlock Text="Цена продажи" 
+                                      Style="{StaticResource BodyText}" 
+                                      FontWeight="SemiBold"
+                                      Margin="0,0,0,4"/>
+                                        <TextBox x:Name="txtSellingPrice" 
+                                    TextAlignment="Right"
+                                    Height="36"
+                                    IsReadOnly="True"
+                                                 Text="1"/>
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock Text="Сумма" 
+                                      Style="{StaticResource BodyText}" 
+                                      FontWeight="SemiBold"
+                                      Margin="0,0,0,4"/>
+                                        <TextBlock x:Name="txtLineTotal" 
+                                      Text="0.00"
+                                      Style="{StaticResource BodyText}"
+                                      VerticalAlignment="Center"
+                                      FontWeight="SemiBold"
+                                      Foreground="{StaticResource AccentGreenBrush}"
+                                      Height="36"
+                                      Padding="0,8"/>
+                                    </StackPanel>
+                                </Grid>
+
+                                <!-- Кнопка добавления -->
+                                <Button Content="➕ Добавить в документ" 
+                                       Style="{StaticResource PrimaryButton}"
+                                       Height="40"
+                                       Click="AddItem_Click"/>
+
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <!-- ПРАВАЯ КОЛОНКА: ТАБЛИЦА ТОВАРОВ -->
+                <Border Style="{StaticResource Card}" Padding="0" Grid.Column="1" Margin="8,0,0,0">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Заголовок таблицы -->
+                        <Border Grid.Row="0" Style="{StaticResource CardHeader}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" 
+                               Text="📦 Товары в документе" 
+                               Style="{StaticResource H3}" 
+                               Foreground="{StaticResource TextWhiteBrush}"/>
+                                <TextBlock Grid.Column="1" 
+                               x:Name="txtSelectedItemsInfo"
+                               Text="Позиций: 0" 
+                               Style="{StaticResource BodyText}" 
+                               Foreground="{StaticResource TextWhiteBrush}"
+                               VerticalAlignment="Center"
+                               Margin="0,0,8,0"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- Таблица -->
+                        <DataGrid x:Name="dgItems" 
+                      Grid.Row="1"
+                      AutoGenerateColumns="False"
+                      CanUserAddRows="False"
+                      IsReadOnly="True"
+                      SelectionMode="Single">
+
+                            <DataGrid.Columns>
+                                <!-- № -->
+                                <DataGridTextColumn Header="№" Width="40">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <!-- Товар -->
+                                <DataGridTextColumn Header="Товар" 
+                                  Width="200"
+                                  Binding="{Binding Product.Name}">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                            <Setter Property="ToolTip" Value="{Binding Product.Name}"/>
+                                            <Setter Property="Margin" Value="8 0"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <!-- Количество -->
+                                <DataGridTextColumn Header="Кол-во" 
+                                  Width="80"
+                                  Binding="{Binding Quantity, StringFormat='{}{0:N0}'}">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="TextAlignment" Value="Right"/>
+                                            <Setter Property="Margin" Value="0,0,8,0"/>
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <!-- Цена -->
+                                <DataGridTextColumn Header="Цена" 
+                                  Width="90"
+                                  Binding="{Binding UnitPrice, StringFormat='N2'}">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="TextAlignment" Value="Right"/>
+                                            <Setter Property="Margin" Value="0,0,8,0"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <!-- Сумма -->
+                                <DataGridTextColumn Header="Сумма" 
+                                  Width="100"
+                                  Binding="{Binding TotalPrice, StringFormat='N2'}">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="TextAlignment" Value="Right"/>
+                                            <Setter Property="Margin" Value="0,0,8,0"/>
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                            <Setter Property="Foreground" Value="{StaticResource AccentGreenBrush}"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <!-- Рецептурный -->
+                                <DataGridTemplateColumn Header="Рецепт" Width="70">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border CornerRadius="12"
+                                        Padding="12"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="{StaticResource StatusErrorBrush}"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Product.RequiresPrescription}" Value="True">
+                                                                <Setter Property="Background" Value="{StaticResource StatusSuccessBrush}" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
+                                <!-- Действия -->
+                                <DataGridTemplateColumn Header="" Width="80">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                <Button Content="✏️" 
+                                            Style="{StaticResource IconButton}"
+                                            Click="EditItem_Click"
+                                            Tag="{Binding}"
+                                            Margin="2"
+                                            Width="30"
+                                            Height="30"/>
+                                                <Button Content="🗑️" 
+                                            Style="{StaticResource IconButton}"
+                                            Click="DeleteItem_Click"
+                                            Tag="{Binding}"
+                                            Margin="2"
+                                            Width="30"
+                                            Height="30"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+
+                            <DataGrid.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="✏️ Редактировать" Click="EditItem_Click"/>
+                                    <MenuItem Header="📋 Копировать" Click="CopyItem_Click"/>
+                                    <Separator/>
+                                    <MenuItem Header="📊 Информация о товаре" Click="ShowProductInfo_Click"/>
+                                    <MenuItem Header="📦 Доступные партии" Click="ShowAvailableBatches_Click"/>
+                                </ContextMenu>
+                            </DataGrid.ContextMenu>
+                        </DataGrid>
+                    </Grid>
+                </Border>
+            </Grid>
+        </StackPanel>
+    </ScrollViewer>
+</Page>
