@@ -135,12 +135,6 @@ namespace PharmacyWarehouse
             MainFrame.Navigate(page);
         }
 
-        private void Stock_Click(object sender, RoutedEventArgs e)
-        {
-            var page = _serviceProvider.GetService<StockPage>();
-            MainFrame.Navigate(page);
-        }
-
         private void SearchTextBox_GotFocus(object sender, RoutedEventArgs e)
         {
             if (SearchTextBox.Text == "Поиск товаров...")

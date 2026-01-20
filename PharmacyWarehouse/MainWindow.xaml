@@ -211,13 +211,6 @@
                         
 
                         <!-- Отчеты -->
-                            <TextBlock Text="ОТЧЕТЫ" Style="{StaticResource NavHeader}"/>
-                            <Button Style="{StaticResource NavItem}" Click="Stock_Click">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="📊" Width="24"/>
-                                    <TextBlock Text="Остатки"/>
-                                </StackPanel>
-                            </Button>
 
                         <TextBlock Text="АДМИНИСТРАТИРОВАНИЕ" 
            Style="{StaticResource NavHeader}"

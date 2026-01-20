@@ -663,32 +663,218 @@ namespace PharmacyWarehouse.Pages
 
     #region ViewModel для отображения документов
 
+    #region ViewModel для отображения документов
+
     public class DocumentViewModel : INotifyPropertyChanged
     {
         private readonly Document _document;
         private string _correctionReason;
-
+        private string _supplierName;
+        private string _customerName;
+        private string _notes;
+        private decimal _amount;
+        private string _writeOffReason;
+        private int _linesCount;
+        private string _typeDisplayName;
+        private string _typeIcon;
+        private string _groupKey;
+        private string _statusDisplayName;
+        private string _baseDocumentInfo;
+        private string _correctionTypeDisplayName;
 
         public DocumentViewModel(Document document)
         {
             _document = document;
-            _correctionReason = _document.CorrectionReason ?? "-";
+            InitializeProperties();
         }
 
-        public int Id => _document.Id;
-        public string Number => _document.Number;
-        public DateTime Date => _document.Date;
-        public DateTime CreatedAt => _document.CreatedAt;
-        public string CreatedBy => _document.CreatedBy;
-        public DocumentType Type => _document.Type;
-        public DocumentStatus Status => _document.Status;
-        public string CustomerName => _document.CustomerName ?? "-";
-        public string Notes => _document.Notes ?? "-";
-        public decimal Amount => _document.Amount ?? 0;
+        private void InitializeProperties()
+        {
+            _correctionReason = _document.CorrectionReason ?? "-";
+            _supplierName = _document.Supplier?.Name ?? "-";
+            _customerName = _document.CustomerName ?? "-";
+            _notes = _document.Notes ?? "-";
+            _amount = _document.Amount ?? 0;
+            _writeOffReason = ExtractWriteOffReason(_document.Notes);
+            _linesCount = _document.DocumentLines?.Count ?? 0;
+            _typeDisplayName = GetTypeDisplayName();
+            _typeIcon = GetTypeIcon();
+            _groupKey = GetGroupKey();
+            _statusDisplayName = GetStatusDisplayName();
+            _baseDocumentInfo = GetBaseDocumentInfo();
+            _correctionTypeDisplayName = GetCorrectionTypeDisplayName();
+        }
 
-        // Для контрагентов в зависимости от типа документа
-        public string SupplierName => _document.Supplier?.Name ?? "-";
-        public string WriteOffReason => ExtractWriteOffReason(_document.Notes);
+        public int Id
+        {
+            get => _document.Id;
+            set
+            {
+                if (_document.Id != value)
+                {
+                    _document.Id = value;
+                    OnPropertyChanged(nameof(Id));
+                }
+            }
+        }
+
+        public string Number
+        {
+            get => _document.Number;
+            set
+            {
+                if (_document.Number != value)
+                {
+                    _document.Number = value;
+                    OnPropertyChanged(nameof(Number));
+                }
+            }
+        }
+
+        public DateTime Date
+        {
+            get => _document.Date;
+            set
+            {
+                if (_document.Date != value)
+                {
+                    _document.Date = value;
+                    OnPropertyChanged(nameof(Date));
+                }
+            }
+        }
+
+        public DateTime CreatedAt
+        {
+            get => _document.CreatedAt;
+            set
+            {
+                if (_document.CreatedAt != value)
+                {
+                    _document.CreatedAt = value;
+                    OnPropertyChanged(nameof(CreatedAt));
+                }
+            }
+        }
+
+        public string CreatedBy
+        {
+            get => _document.CreatedBy;
+            set
+            {
+                if (_document.CreatedBy != value)
+                {
+                    _document.CreatedBy = value;
+                    OnPropertyChanged(nameof(CreatedBy));
+                }
+            }
+        }
+
+        public DocumentType Type
+        {
+            get => _document.Type;
+            set
+            {
+                if (_document.Type != value)
+                {
+                    _document.Type = value;
+                    OnPropertyChanged(nameof(Type));
+                    // Обновляем зависимые свойства
+                    TypeDisplayName = GetTypeDisplayName();
+                    TypeIcon = GetTypeIcon();
+                    GroupKey = GetGroupKey();
+                }
+            }
+        }
+
+        public DocumentStatus Status
+        {
+            get => _document.Status;
+            set
+            {
+                if (_document.Status != value)
+                {
+                    _document.Status = value;
+                    OnPropertyChanged(nameof(Status));
+                    StatusDisplayName = GetStatusDisplayName();
+                }
+            }
+        }
+
+        public string CustomerName
+        {
+            get => _customerName;
+            set
+            {
+                if (_customerName != value)
+                {
+                    _customerName = value;
+                    OnPropertyChanged(nameof(CustomerName));
+                    _document.CustomerName = value == "-" ? null : value;
+                }
+            }
+        }
+
+        public string Notes
+        {
+            get => _notes;
+            set
+            {
+                if (_notes != value)
+                {
+                    _notes = value;
+                    OnPropertyChanged(nameof(Notes));
+                    _document.Notes = value == "-" ? null : value;
+                    WriteOffReason = ExtractWriteOffReason(value);
+                }
+            }
+        }
+
+        public decimal Amount
+        {
+            get => _amount;
+            set
+            {
+                if (_amount != value)
+                {
+                    _amount = value;
+                    OnPropertyChanged(nameof(Amount));
+                    _document.Amount = value;
+                }
+            }
+        }
+
+        public string SupplierName
+        {
+            get => _supplierName;
+            set
+            {
+                if (_supplierName != value)
+                {
+                    _supplierName = value;
+                    OnPropertyChanged(nameof(SupplierName));
+
+                    if (_document.Supplier != null && value != "-")
+                    {
+                        _document.Supplier.Name = value;
+                    }
+                }
+            }
+        }
+
+        public string WriteOffReason
+        {
+            get => _writeOffReason;
+            private set
+            {
+                if (_writeOffReason != value)
+                {
+                    _writeOffReason = value;
+                    OnPropertyChanged(nameof(WriteOffReason));
+                }
+            }
+        }
+
         public string CorrectionReason
         {
             get => _correctionReason;
@@ -698,82 +884,199 @@ namespace PharmacyWarehouse.Pages
                 {
                     _correctionReason = value;
                     OnPropertyChanged(nameof(CorrectionReason));
-
-                    // Если нужно сохранить в модель
                     _document.CorrectionReason = value == "-" ? null : value;
                 }
             }
         }
-        // Вычисляемое количество строк
-        public int LinesCount => _document.DocumentLines?.Count ?? 0;
 
-        // Для группировки
-        public int? OriginalDocumentId => _document.OriginalDocumentId;
-
-        public string CorrectionTypeDisplayName => _document.CorrectionType.HasValue
-            ? _document.CorrectionType.Value switch
+        public int LinesCount
+        {
+            get => _linesCount;
+            set
             {
-                CorrectionType.Quantity => "Корректировка количества",
-                CorrectionType.Price => "Корректировка цены",
-                CorrectionType.ExpirationDate => "Корректировка срока годности",
-                CorrectionType.Series => "Корректировка серии",
-                CorrectionType.Product => "Корректировка товара",
-                _ => "Корректировка"
+                if (_linesCount != value)
+                {
+                    _linesCount = value;
+                    OnPropertyChanged(nameof(LinesCount));
+                }
             }
-            : "-";
-
-
-        public event PropertyChangedEventHandler PropertyChanged;
-
-        protected virtual void OnPropertyChanged(string propertyName)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
-        public string TypeDisplayName => Type switch
-        {
-            DocumentType.Incoming => "Приходная накладная",
-            DocumentType.Outgoing => "Расходная накладная",
-            DocumentType.WriteOff => "Акт списания",
-            DocumentType.Correction => "Корректировка",
-            _ => Type.ToString()
-        };
 
-        public string TypeIcon => Type switch
+        public int? OriginalDocumentId
         {
-            DocumentType.Incoming => "📥",
-            DocumentType.Outgoing => "📤",
-            DocumentType.WriteOff => "🗑️",
-            DocumentType.Correction => "✏️",
-            _ => "📄"
-        };
+            get => _document.OriginalDocumentId;
+            set
+            {
+                if (_document.OriginalDocumentId != value)
+                {
+                    _document.OriginalDocumentId = value;
+                    OnPropertyChanged(nameof(OriginalDocumentId));
+                    BaseDocumentInfo = GetBaseDocumentInfo();
+                }
+            }
+        }
 
-        public string GroupKey => Type switch
+        public string CorrectionTypeDisplayName
         {
-            DocumentType.Incoming => "📥 Приходные накладные",
-            DocumentType.Outgoing => "📤 Расходные накладные",
-            DocumentType.WriteOff => "🗑️ Акты списания",
-            DocumentType.Correction => "✏️ Корректировки",
-            _ => Type.ToString()
-        };
+            get => _correctionTypeDisplayName;
+            set
+            {
+                if (_correctionTypeDisplayName != value)
+                {
+                    _correctionTypeDisplayName = value;
+                    OnPropertyChanged(nameof(CorrectionTypeDisplayName));
+                }
+            }
+        }
+
+        public string TypeDisplayName
+        {
+            get => _typeDisplayName;
+            set
+            {
+                if (_typeDisplayName != value)
+                {
+                    _typeDisplayName = value;
+                    OnPropertyChanged(nameof(TypeDisplayName));
+                }
+            }
+        }
+
+        public string TypeIcon
+        {
+            get => _typeIcon;
+            set
+            {
+                if (_typeIcon != value)
+                {
+                    _typeIcon = value;
+                    OnPropertyChanged(nameof(TypeIcon));
+                }
+            }
+        }
+
+        public string GroupKey
+        {
+            get => _groupKey;
+            set
+            {
+                if (_groupKey != value)
+                {
+                    _groupKey = value;
+                    OnPropertyChanged(nameof(GroupKey));
+                }
+            }
+        }
 
         public string BaseDocumentInfo
         {
-            get
+            get => _baseDocumentInfo;
+            set
             {
-                if (Type != DocumentType.Correction || !OriginalDocumentId.HasValue)
-                    return "-";
-
-                return $"Основание: {_document.OriginalDocument?.Number ?? OriginalDocumentId.ToString()}";
+                if (_baseDocumentInfo != value)
+                {
+                    _baseDocumentInfo = value;
+                    OnPropertyChanged(nameof(BaseDocumentInfo));
+                }
             }
         }
 
-        public string StatusDisplayName => Status switch
+        public string StatusDisplayName
         {
-            DocumentStatus.Draft => "Черновик",
-            DocumentStatus.Processed => "Проведен",
-            DocumentStatus.Blocked => "Заблокирован",
-            _ => Status.ToString()
-        };
+            get => _statusDisplayName;
+            set
+            {
+                if (_statusDisplayName != value)
+                {
+                    _statusDisplayName = value;
+                    OnPropertyChanged(nameof(StatusDisplayName));
+                }
+            }
+        }
+
+        public CorrectionType? CorrectionType
+        {
+            get => _document.CorrectionType;
+            set
+            {
+                if (_document.CorrectionType != value)
+                {
+                    _document.CorrectionType = value;
+                    OnPropertyChanged(nameof(CorrectionType));
+                    CorrectionTypeDisplayName = GetCorrectionTypeDisplayName();
+                }
+            }
+        }
+
+        private string GetTypeDisplayName()
+        {
+            return _document.Type switch
+            {
+                DocumentType.Incoming => "Приходная накладная",
+                DocumentType.Outgoing => "Расходная накладная",
+                DocumentType.WriteOff => "Акт списания",
+                DocumentType.Correction => "Корректировка",
+                _ => _document.Type.ToString()
+            };
+        }
+
+        private string GetTypeIcon()
+        {
+            return _document.Type switch
+            {
+                DocumentType.Incoming => "📥",
+                DocumentType.Outgoing => "📤",
+                DocumentType.WriteOff => "🗑️",
+                DocumentType.Correction => "✏️",
+                _ => "📄"
+            };
+        }
+
+        private string GetGroupKey()
+        {
+            return _document.Type switch
+            {
+                DocumentType.Incoming => "📥 Приходные накладные",
+                DocumentType.Outgoing => "📤 Расходные накладные",
+                DocumentType.WriteOff => "🗑️ Акты списания",
+                DocumentType.Correction => "✏️ Корректировки",
+                _ => _document.Type.ToString()
+            };
+        }
+
+        private string GetStatusDisplayName()
+        {
+            return _document.Status switch
+            {
+                DocumentStatus.Draft => "Черновик",
+                DocumentStatus.Processed => "Проведен",
+                DocumentStatus.Blocked => "Заблокирован",
+                _ => _document.Status.ToString()
+            };
+        }
+
+        private string GetBaseDocumentInfo()
+        {
+            if (_document.Type != DocumentType.Correction || !_document.OriginalDocumentId.HasValue)
+                return "-";
+
+            return $"Основание: {_document.OriginalDocument?.Number ?? _document.OriginalDocumentId.ToString()}";
+        }
+
+        private string GetCorrectionTypeDisplayName()
+        {
+            return _document.CorrectionType.HasValue
+                ? _document.CorrectionType.Value switch
+                {
+                    Models.CorrectionType.Quantity => "Корректировка количества",
+                    Models.CorrectionType.Price => "Корректировка цены",
+                    Models.CorrectionType.ExpirationDate => "Корректировка срока годности",
+                    Models.CorrectionType.Series => "Корректировка серии",
+                    Models.CorrectionType.Product => "Корректировка товара",
+                    _ => "Корректировка"
+                }
+                : "-";
+        }
 
         private string ExtractWriteOffReason(string notes)
         {
@@ -783,7 +1086,16 @@ namespace PharmacyWarehouse.Pages
             var lines = notes.Split('\n');
             return lines.Length > 0 ? lines[0].Trim() : "Списание";
         }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        protected virtual void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
     }
+
+    #endregion
 
     #endregion
 }

@@ -32,7 +32,6 @@ namespace PharmacyWarehouse
             services.AddTransient<OutgoingPage>();
             services.AddTransient<ProductsPage>();
             services.AddTransient<ReceiptPage>();
-            services.AddTransient<StockPage>();
             services.AddTransient<SuppliersPage>(); 
             services.AddTransient<WriteOffPage>();
 

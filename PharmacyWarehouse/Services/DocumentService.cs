@@ -342,8 +342,6 @@ public class DocumentService
             if (originalDoc == null)
                 throw new Exception("Оригинальный документ не найден");
 
-            if (originalDoc.Type != DocumentType.Incoming)
-                throw new Exception("Корректировка количества возможна только для приходных накладных");
 
             var correctionDoc = new Document
             {
@@ -530,10 +528,8 @@ public class DocumentService
 
         try
         {
-            // Проверяем, новый ли это документ или редактирование существующего
-            if (document.Id == 0) // Новый документ
+            if (document.Id == 0) 
             {
-                // Генерируем номер, если он пустой
                 if (string.IsNullOrWhiteSpace(document.Number))
                 {
                     var date = document.Date;
@@ -543,9 +539,8 @@ public class DocumentService
 
                 _db.Documents.Add(document);
             }
-            else // Существующий документ (редактирование черновика)
+            else 
             {
-                // Загружаем существующий документ
                 var existingDocument = _db.Documents
                     .Include(d => d.DocumentLines)
                     .FirstOrDefault(d => d.Id == document.Id);
@@ -553,7 +548,6 @@ public class DocumentService
                 if (existingDocument == null)
                     throw new Exception("Документ не найден");
 
-                // Обновляем свойства документа
                 existingDocument.Date = document.Date;
                 existingDocument.SupplierId = document.SupplierId;
                 existingDocument.SupplierInvoiceNumber = document.SupplierInvoiceNumber;
@@ -564,10 +558,8 @@ public class DocumentService
                 existingDocument.SignedBy = document.SignedBy;
                 existingDocument.SignedAt = document.SignedAt;
 
-                // Удаляем старые строки документа
                 _db.DocumentLines.RemoveRange(existingDocument.DocumentLines);
 
-                // Присваиваем обновленный документ переменной document для дальнейшего использования
                 document = existingDocument;
             }
 
@@ -575,12 +567,10 @@ public class DocumentService
 
             decimal totalAmount = 0;
 
-            // Добавляем строки документа
             foreach (var line in documentLines)
             {
                 line.DocumentId = document.Id;
 
-                // Если документ проводится (не черновик), создаем партию
                 if (document.Status == DocumentStatus.Processed)
                 {
                     var batch = new Batch

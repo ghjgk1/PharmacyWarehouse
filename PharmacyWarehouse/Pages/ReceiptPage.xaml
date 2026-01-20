@@ -33,13 +33,6 @@
                                  Margin="8,0,0,0"
                                  Click="ProcessDocument_Click"/>
 
-                        <Button Content="🖨️ Печать" 
-                                 Style="{StaticResource SecondaryButton}" 
-                                 Width="100"
-                                 Height="42"
-                                 Margin="8,0,0,0"
-                                 Click="PrintDocument_Click"/>
-
                         <Button Content="🗑️ Отмена" 
                                  Style="{StaticResource DangerButton}" 
                                  Width="100"

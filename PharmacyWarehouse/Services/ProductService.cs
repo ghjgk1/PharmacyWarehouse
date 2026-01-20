@@ -116,7 +116,7 @@ namespace PharmacyWarehouse.Services
             };
         }
 
-        public void     ArchiveProduct(int productId, string reason, bool blockSales,
+        public void ArchiveProduct(int productId, string reason, bool blockSales,
                           string comment = null)
         {
             var product = _db.Products

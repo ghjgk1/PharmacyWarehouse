@@ -17,13 +17,6 @@
 
                     <StackPanel Style="{StaticResource ToolbarPanel}">
                         <Button Content="Списать партию" Style="{StaticResource DangerButton}" Width="140" Margin="8,0,0,0" Click="WriteOffBatch_Click"/>
-                        <Button Content="Экспорт" Style="{StaticResource OutlineButton}" Width="100" Margin="8,0,0,0" Click="Export_Click"/>
-                        
-                        <Separator Margin="24,0"/>
-
-                        <Button Content="⚠️" Style="{StaticResource IconButton}" ToolTip="Просроченные партии" Click="ShowExpiredBatches_Click"/>
-                        <Button Content="⏳" Style="{StaticResource IconButton}" ToolTip="Истекающие сроки" Click="ShowExpiringBatches_Click"/>
-                        <Button Content="📊" Style="{StaticResource IconButton}" ToolTip="Отчет по партиям" Click="BatchReport_Click"/>
                     </StackPanel>
                 </StackPanel>
             </Border>

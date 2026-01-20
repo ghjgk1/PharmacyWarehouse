@@ -12,8 +12,8 @@ using PharmacyWarehouse.Data;
 namespace PharmacyWarehouse.Migrations
 {
     [DbContext(typeof(PharmacyWarehouseContext))]
-    [Migration("20260119210141_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20260120035216_InitialDb")]
+    partial class InitialDb
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
