@@ -51,11 +51,3 @@ dotnet ef database update
 В Visual Studio установите проект PharmacyWarehouse как запускаемый
 
 Нажмите F5 или Запуск
-
-
-
-```powershell
-# В консоли диспетчера пакетов:
-Add-Migration "ОписаниеИзменений"
-Update-Database
-```
