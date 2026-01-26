@@ -19,26 +19,14 @@
 ### 1. Установка
 ```bash
 git clone https://github.com/ghjgk1/PharmacyWarehouse.git
-```   
-### 2. Настройка базы данных
-Способ 1: Через консоль диспетчера пакетов (Visual Studio)
-
-Откройте PharmacyWarehouse.sln в Visual Studio
-
-Перейдите: Инструменты → Диспетчер пакетов NuGet → Консоль диспетчера пакетов
-
-Выполните команду:
-
-```powershell
-Update-Database
 ```
-Способ 2: Через командную строку (.NET CLI)
-
+### 2. Востановление пакетов
 ```bash
-dotnet ef database update
-```
+# Восстановить пакеты NuGet
+dotnet restore
+```   
 ### 3. Настройка подключения к БД
-В appsetting.json поменять строку на свою:
+В appsettings.json поменять строку на свою:
 
 ```json
 {
@@ -47,7 +35,20 @@ dotnet ef database update
   }
 }
 ```
-### 4. Запуск
+### 4. Настройка базы данных
+Перейдите: Инструменты → Диспетчер пакетов NuGet → Консоль диспетчера пакетов
+
+Выполните команду:
+
+```powershell
+# 1. Создать миграцию
+Add-Migration InitialCreate
+
+# 2. Применить к БД
+Update-Database
+```
+
+### 5. Запуск
 В Visual Studio установите проект PharmacyWarehouse как запускаемый
 
 Нажмите F5 или Запуск
