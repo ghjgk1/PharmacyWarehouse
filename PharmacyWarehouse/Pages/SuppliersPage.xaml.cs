@@ -14,9 +14,11 @@ public partial class SuppliersPage : Page
 {
     private readonly SupplierService _supplierService;
     private ICollectionView _suppliersView;
+    private List<Supplier> _filteredSuppliers = new();
+    private List<Supplier> _currentPageSuppliers = new();
     private List<Supplier> _allSuppliers = new();
     private int _currentPage = 1;
-    private int _pageSize = 25;
+    private int _pageSize = 10;
     private int _totalPages = 1;
     private bool _isPageLoaded = false;
 
@@ -35,6 +37,11 @@ public partial class SuppliersPage : Page
         _isPageLoaded = false;
         LoadSuppliers();
         _isPageLoaded = true;
+        ApplyFilters();
+
+        var isAdmin = AuthService.IsAdmin();
+        Admin.Visibility = isAdmin ? Visibility.Visible : Visibility.Collapsed;
+
     }
 
     private void LoadSuppliers()
@@ -58,7 +65,7 @@ public partial class SuppliersPage : Page
     {
         _suppliersView = CollectionViewSource.GetDefaultView(_allSuppliers);
         _suppliersView.Filter = FilterSupplier;
-        dgSuppliers.ItemsSource = _suppliersView;
+        ApplyFilters();
     }
 
     private void RefreshSuppliers_Click(object sender, RoutedEventArgs e)
@@ -149,13 +156,39 @@ public partial class SuppliersPage : Page
     private void ApplyFilters()
     {
         _suppliersView?.Refresh();
+
+        _filteredSuppliers = _suppliersView?.Cast<Supplier>().ToList() ?? new List<Supplier>();
+
+        _currentPage = 1;
+
         UpdateStatistics();
         UpdatePageInfo();
+        UpdateDataGrid();
     }
 
     private void ApplyFilters_Click(object sender, RoutedEventArgs e)
     {
         ApplyFilters();
+    }
+
+    private void UpdateDataGrid()
+    {
+        try
+        {
+            var startIndex = (_currentPage - 1) * _pageSize;
+            _currentPageSuppliers = _filteredSuppliers
+                .Skip(startIndex)
+                .Take(_pageSize > 0 ? _pageSize : _filteredSuppliers.Count)
+                .ToList();
+
+            dgSuppliers.ItemsSource = null;
+            dgSuppliers.ItemsSource = _currentPageSuppliers;
+            dgSuppliers.UpdateLayout();
+        }
+        catch (Exception ex)
+        {
+            ShowError("Ошибка обновления таблицы", ex.Message);
+        }
     }
 
     private void ResetFilters_Click(object sender, RoutedEventArgs e)
@@ -524,18 +557,24 @@ public partial class SuppliersPage : Page
 
     private void CmbPageSize_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
+        if (!_isPageLoaded) return;
+
         if (cmbPageSize.SelectedItem is ComboBoxItem selectedItem &&
             selectedItem.Tag is string tag &&
             int.TryParse(tag, out int newSize))
         {
             _pageSize = newSize;
+            _currentPage = 1; 
+            UpdateDataGrid();
             UpdatePageInfo();
         }
+
     }
 
     private void FirstPage_Click(object sender, RoutedEventArgs e)
     {
         _currentPage = 1;
+        UpdateDataGrid();
         UpdatePageInfo();
     }
 
@@ -544,6 +583,7 @@ public partial class SuppliersPage : Page
         if (_currentPage > 1)
         {
             _currentPage--;
+            UpdateDataGrid();
             UpdatePageInfo();
         }
     }
@@ -553,6 +593,7 @@ public partial class SuppliersPage : Page
         if (_currentPage < _totalPages)
         {
             _currentPage++;
+            UpdateDataGrid();
             UpdatePageInfo();
         }
     }
@@ -560,6 +601,7 @@ public partial class SuppliersPage : Page
     private void LastPage_Click(object sender, RoutedEventArgs e)
     {
         _currentPage = _totalPages;
+        UpdateDataGrid();
         UpdatePageInfo();
     }
 
@@ -570,6 +612,8 @@ public partial class SuppliersPage : Page
             page != _currentPage)
         {
             _currentPage = page;
+            UpdateDataGrid();
+            UpdatePageInfo();
         }
     }
 

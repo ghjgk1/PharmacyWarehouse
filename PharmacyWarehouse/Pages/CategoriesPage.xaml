@@ -7,270 +7,273 @@
       mc:Ignorable="d" 
       Title="Категории товаров">
 
-    <Grid Margin="16">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <Grid Margin="16">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
 
-        <!-- УПРАВЛЕНИЕ КАТЕГОРИЯМИ -->
-        <Border Style="{StaticResource Card}">
-            <StackPanel>
-                <TextBlock Text="Категории товаров" Style="{StaticResource H1}"/>
-                
-                <!-- Панель поиска (ДОБАВЛЕНО) -->
-                <Border  
+            <!-- УПРАВЛЕНИЕ КАТЕГОРИЯМИ -->
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="Категории товаров" Style="{StaticResource H1}"/>
+
+                    <!-- Панель поиска (ДОБАВЛЕНО) -->
+                    <Border  
                         CornerRadius="8" 
                         Padding="12" 
                         Margin="0,16,0,8">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        
-                        <!-- Поле поиска -->
-                        <TextBox x:Name="SearchTextBox"
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Поле поиска -->
+                            <TextBox x:Name="SearchTextBox"
                                  Grid.Column="0"
                                  GotFocus="SearchTextBox_GotFocus"
                                  LostFocus="SearchTextBox_LostFocus"
                                  KeyDown="SearchTextBox_KeyDown"
                                  Foreground="Gray">
-                            Поиск по названию или описанию...
-                        </TextBox>
-                        <!-- Кнопки поиска -->
-                        <StackPanel Grid.Column="1" 
+                                Поиск по названию или описанию...
+                            </TextBox>
+                            <!-- Кнопки поиска -->
+                            <StackPanel Grid.Column="1" 
                                     Orientation="Horizontal"
                                     Margin="8,0,0,0">
-                            <StackPanel Grid.Column="1" 
+                                <StackPanel Grid.Column="1" 
                                         Orientation="Horizontal"
                                         Margin="8,0,0,0">
-                                <Button x:Name="SearchButton"
+                                    <Button x:Name="SearchButton"
                                         Content="Найти"
                                         Style="{StaticResource PrimaryButton}"
-                                        Click="SearchButton_Click"/>        
+                                        Click="SearchButton_Click"/>
 
-                                <Button x:Name="ClearSearchButton"
+                                    <Button x:Name="ClearSearchButton"
                                         Content="Очистить"
                                         Style="{StaticResource OutlineButton}"
                                         Click="ClearSearch_Click"
                                         Margin="8,0,0,0"/>
+                                </StackPanel>
                             </StackPanel>
-                        </StackPanel>
-                    </Grid>
-                </Border>
+                        </Grid>
+                    </Border>
 
-                <Grid Margin="0,8,0,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
+                    <Grid Margin="0,8,0,0" x:Name="Admin">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
 
-                    <!-- Форма категории -->
-                    <StackPanel Grid.Column="0">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="120"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
+                        <!-- Форма категории -->
+                        <StackPanel Grid.Column="0">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="120"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
 
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
 
-                            <TextBlock Text="Название:" Grid.Row="0" Grid.Column="0" 
+                                <TextBlock Text="Название:" Grid.Row="0" Grid.Column="0" 
                                       Style="{StaticResource BodyText}"
                                       VerticalAlignment="Center"/>
-                            <TextBox x:Name="txtCategoryName" 
+                                <TextBox x:Name="txtCategoryName" 
                                     Grid.Row="0" Grid.Column="1"
                                     Margin="8,0,0,0"
                                     MaxLength="100"/>
 
-                            <TextBlock Text="Описание:" Grid.Row="1" Grid.Column="0" 
+                                <TextBlock Text="Описание:" Grid.Row="1" Grid.Column="0" 
                                       Style="{StaticResource BodyText}"
                                       VerticalAlignment="Top"
                                       Margin="0,12,0,0"/>
-                            <TextBox x:Name="txtCategoryDescription" 
+                                <TextBox x:Name="txtCategoryDescription" 
                                     Grid.Row="1" Grid.Column="1"
                                     Margin="8,12,0,0"
                                     Height="60"
                                     TextWrapping="Wrap"
                                     AcceptsReturn="True"
                                     MaxLength="500"/>
-                        </Grid>
-                    </StackPanel>
+                            </Grid>
+                        </StackPanel>
 
-                    <!-- Кнопки управления -->
-                    <StackPanel Grid.Column="1" 
+                        <!-- Кнопки управления -->
+                        <StackPanel Grid.Column="1" 
                                Margin="24,0,0,0"
                                VerticalAlignment="Bottom">
-                        <Button Content="Добавить" 
+                            <Button Content="Добавить" 
                                Style="{StaticResource PrimaryButton}" 
                                Width="120"
                                Click="AddCategory_Click"/>
-                        <Button Content="Обновить" 
+                            <Button Content="Обновить" 
                                Style="{StaticResource SecondaryButton}" 
                                Width="120"
                                Margin="0,8,0,0"
                                Click="SaveCategory_Click"/>
-                        <Button Content="Удалить" 
+                            <Button Content="Удалить" 
                                Style="{StaticResource DangerButton}" 
                                Width="120"
                                Margin="0,8,0,0"
                                Click="DeleteCategory_Click"/>
-                    </StackPanel>
-                </Grid>
-            </StackPanel>
-        </Border>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
 
-        <!-- ДЕРЕВО КАТЕГОРИЙ -->
-        <Border Style="{StaticResource Card}" Grid.Row="1" Margin="0,16,0,0">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
+            <!-- ДЕРЕВО КАТЕГОРИЙ -->
+            <Border Style="{StaticResource Card}" Grid.Row="1" Margin="0,16,0,0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
 
-                <!-- Дерево категорий -->
-                <StackPanel Grid.Column="0" Margin="0,0,12,0">
-                    <Border Style="{StaticResource CardHeader}">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="Структура категорий" 
+                    <!-- Дерево категорий -->
+                    <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                        <Border Style="{StaticResource CardHeader}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Структура категорий" 
                                       Style="{StaticResource H3}" 
                                       Foreground="{StaticResource TextWhiteBrush}"/>
-                            <TextBlock Text="{Binding Service.Categories.Count, StringFormat=' (Всего: {0})'}"
+                                <TextBlock Text="{Binding Service.Categories.Count, StringFormat=' (Всего: {0})'}"
                                       Style="{StaticResource Caption}"
                                       Foreground="{StaticResource GrayLighterBrush}"
                                       Margin="8,0,0,0"
                                       VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Border>
+                            </StackPanel>
+                        </Border>
 
-                    <TreeView x:Name="tvCategories" 
+                        <TreeView x:Name="tvCategories" 
                              Margin="0,12,0,0"
                              SelectedItemChanged="TvCategories_SelectedItemChanged">
-                        <TreeView.ItemTemplate>
-                            <HierarchicalDataTemplate ItemsSource="{Binding Products}">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="{Binding Name}" Margin="0,0,8,0"/>
-                                    <TextBlock Text=" (" Style="{StaticResource Caption}"/>
-                                    <TextBlock Text="{Binding Products.Count}" Style="{StaticResource Caption}"/>
-                                    <TextBlock Text=")" Style="{StaticResource Caption}"/>
-                                </StackPanel>
-                            </HierarchicalDataTemplate>
-                        </TreeView.ItemTemplate>
-                    </TreeView>
+                            <TreeView.ItemTemplate>
+                                <HierarchicalDataTemplate ItemsSource="{Binding Products}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding Name}" Margin="0,0,8,0"/>
+                                        <TextBlock Text=" (" Style="{StaticResource Caption}"/>
+                                        <TextBlock Text="{Binding Products.Count}" Style="{StaticResource Caption}"/>
+                                        <TextBlock Text=")" Style="{StaticResource Caption}"/>
+                                    </StackPanel>
+                                </HierarchicalDataTemplate>
+                            </TreeView.ItemTemplate>
+                        </TreeView>
 
-                    <!-- Статистика категорий -->
-                    <Border Style="{StaticResource InfoBox}" Margin="0,12,0,0">
-                        <StackPanel>
-                            <TextBlock Text="Статистика по категориям" Style="{StaticResource H3}" Margin="0,0,0,8"/>
-                            <TextBlock x:Name="txtTotalCategories" Text="Всего категорий: 0" Style="{StaticResource BodyText}"/>
-                            <TextBlock x:Name="txtTotalProducts" Text="Товаров в категориях: 0" Style="{StaticResource BodyText}"/>
-                            <TextBlock x:Name="txtAvgProducts" Text="Среднее товаров: 0" Style="{StaticResource BodyText}"/>
-                        </StackPanel>
-                    </Border>
-                </StackPanel>
+                        <!-- Статистика категорий -->
+                        <Border Style="{StaticResource InfoBox}" Margin="0,12,0,0">
+                            <StackPanel>
+                                <TextBlock Text="Статистика по категориям" Style="{StaticResource H3}" Margin="0,0,0,8"/>
+                                <TextBlock x:Name="txtTotalCategories" Text="Всего категорий: 0" Style="{StaticResource BodyText}"/>
+                                <TextBlock x:Name="txtTotalProducts" Text="Товаров в категориях: 0" Style="{StaticResource BodyText}"/>
+                                <TextBlock x:Name="txtAvgProducts" Text="Среднее товаров: 0" Style="{StaticResource BodyText}"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
 
-                <!-- Товары в выбранной категории -->
-                <StackPanel Grid.Column="1">
-                    <Border Style="{StaticResource CardHeader}">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="Товары в категории" 
+                    <!-- Товары в выбранной категории -->
+                    <StackPanel Grid.Column="1">
+                        <Border Style="{StaticResource CardHeader}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Товары в категории" 
                                       Style="{StaticResource H3}" 
                                       Foreground="{StaticResource TextWhiteBrush}"/>
-                            <TextBlock x:Name="txtProductsCount"
+                                <TextBlock x:Name="txtProductsCount"
                                       Style="{StaticResource Caption}"
                                       Foreground="{StaticResource GrayLighterBrush}"
                                       Margin="8,0,0,0"
                                       VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Border>
+                            </StackPanel>
+                        </Border>
 
-                    <TextBlock x:Name="txtSelectedCategory" 
+                        <TextBlock x:Name="txtSelectedCategory" 
                               Text="Категория не выбрана" 
                               Style="{StaticResource BodyText}"
                               Margin="0,12,0,8"/>
 
-                    <DataGrid x:Name="dgCategoryProducts" 
+                        <DataGrid x:Name="dgCategoryProducts" 
                              Height="250"
                              AutoGenerateColumns="False"
                              IsReadOnly="True"
                              SelectionMode="Single">
 
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="ID" 
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="ID" 
                                                Width="50"
                                                Binding="{Binding Id}"/>
-                            <DataGridTextColumn Header="Товар" 
+                                <DataGridTextColumn Header="Товар" 
                                                Width="200"
                                                Binding="{Binding Name}"/>
-                            <DataGridTextColumn Header="Производитель" 
+                                <DataGridTextColumn Header="Производитель" 
                                                Width="150"
                                                Binding="{Binding Manufacturer}"/>
-                            <DataGridTextColumn Header="Остаток" 
+                                <DataGridTextColumn Header="Остаток" 
                                                Width="80"
                                                Binding="{Binding CurrentStock}">
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="HorizontalAlignment" Value="Right"/>
-                                        <Setter Property="VerticalAlignment" Value="Center"/>
-                                    </Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
-                            <DataGridTextColumn Header="Цена" 
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Цена" 
                                                Width="100"
                                                Binding="{Binding SellingPrice, StringFormat='N2'}">
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="HorizontalAlignment" Value="Right"/>
-                                        <Setter Property="VerticalAlignment" Value="Center"/>
-                                    </Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
-                            <DataGridTemplateColumn Header="Статус" Width="80">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <Border CornerRadius="8" 
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTemplateColumn Header="Статус" Width="80">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border CornerRadius="8" 
                                                Padding="4,2"
                                                HorizontalAlignment="Center">
-                                            <Border.Style>
-                                                <Style TargetType="Border">
-                                                    <Setter Property="Background" Value="{StaticResource AccentGreenBrush}"/>
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsArchived}" Value="True">
-                                                            <Setter Property="Background" Value="{StaticResource GrayBrush}"/>
-                                                        </DataTrigger>
-                                                        <DataTrigger Binding="{Binding IsLowStock}" Value="True">
-                                                            <Setter Property="Background" Value="{StaticResource AccentOrangeBrush}"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Border.Style>
-                                            <TextBlock Text="{Binding StatusText}"
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="{StaticResource AccentGreenBrush}"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsArchived}" Value="True">
+                                                                <Setter Property="Background" Value="{StaticResource GrayBrush}"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding IsLowStock}" Value="True">
+                                                                <Setter Property="Background" Value="{StaticResource AccentOrangeBrush}"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <TextBlock Text="{Binding StatusText}"
                                                       Foreground="White"
                                                       FontSize="10"
                                                       FontWeight="SemiBold"
                                                       HorizontalAlignment="Center"/>
-                                        </Border>
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
-                        </DataGrid.Columns>
-                    </DataGrid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
 
-                    <!-- Действия с категорией -->
-                    <StackPanel Margin="0,12,0,0">
-                        <Button Content="Сменить категорию" 
+                        <!-- Действия с категорией -->
+                        <StackPanel Margin="0,12,0,0">
+                            <Button Content="Сменить категорию" 
                                 Style="{StaticResource OutlineButton}" 
                                 Width="140"
                                 Margin="8,0,0,0"
                                 Click="ChangeCategory_Click" 
                                 HorizontalAlignment="Right"/>
+                        </StackPanel>
                     </StackPanel>
-                </StackPanel>
-            </Grid>
-        </Border>
-    </Grid>
+                </Grid>
+            </Border>
+        </Grid>
+    </ScrollViewer>
 </Page>
+

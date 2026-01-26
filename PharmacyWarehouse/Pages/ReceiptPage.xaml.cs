@@ -21,7 +21,9 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
 {
     private readonly DocumentService _documentService;
     private readonly ProductService _productService;
-    private readonly SupplierService _supplierService;
+    private readonly SupplierService _supplierService; 
+    private readonly AuthService _authService;
+
 
     private Document _currentDocument;
     private ObservableCollection<DocumentLine> _documentItems;
@@ -37,6 +39,8 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
     private bool _isPageLoaded = false;
     private decimal _documentTotal = 0m;
     private int _totalQuantity = 0;
+    private string _currentUser = String.Empty;
+
 
     public ReceiptPage(int? documentId = null)
     {
@@ -44,6 +48,9 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
         _documentService = App.ServiceProvider.GetService<DocumentService>();
         _productService = App.ServiceProvider.GetService<ProductService>();
         _supplierService = App.ServiceProvider.GetService<SupplierService>();
+        _authService = App.ServiceProvider.GetService<AuthService>();
+
+        _currentUser = AuthService.CurrentUser?.FullName ?? "Неизвестный пользователь";
 
         LoadData();
 
@@ -89,7 +96,7 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
             Type = DocumentType.Incoming,
             Date = DateTime.Now,
             Status = DocumentStatus.Draft,
-            CreatedBy = Environment.UserName,
+            CreatedBy = _currentUser,
             CreatedAt = DateTime.Now,
             Number = GenerateDocumentNumber()
         };
@@ -456,7 +463,7 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
                 _currentDocument.Notes = txtNotes.Text;
                 _currentDocument.Status = DocumentStatus.Processed;
                 _currentDocument.Amount = _documentTotal;
-                _currentDocument.SignedBy = Environment.UserName;
+                _currentDocument.SignedBy = _currentUser;
                 _currentDocument.SignedAt = DateTime.Now;
 
                 var linesForDb = new List<DocumentLine>();

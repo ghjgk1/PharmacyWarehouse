@@ -1,7 +1,8 @@
-﻿using System.Collections.ObjectModel;
-using PharmacyWarehouse.Models;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using PharmacyWarehouse.Data;
+using PharmacyWarehouse.Models;
+using System.Collections.ObjectModel;
 
 namespace PharmacyWarehouse.Services;
 
@@ -10,9 +11,16 @@ public class DocumentService
 {
     private readonly PharmacyWarehouseContext _db = BaseDbService.Instance.Context;
     public ObservableCollection<Document> Documents { get; set; } = new();
+    private readonly AuthService _authService;
+    private readonly IServiceProvider _serviceProvider;
+    private string _currentUser = String.Empty; 
 
     public DocumentService()
     {
+        _serviceProvider = App.ServiceProvider;
+        _authService = _serviceProvider.GetService<AuthService>();
+        _currentUser = AuthService.CurrentUser?.FullName ?? "Неизвестный пользователь";
+
         GetAll();
     }
 
@@ -116,7 +124,7 @@ public class DocumentService
 
                 document.SignedAt = DateTime.Now;
                 if (string.IsNullOrEmpty(document.SignedBy))
-                    document.SignedBy = Environment.UserName;
+                    document.SignedBy = _currentUser;   
             }
             else // Черновик - создаем строки без списания из партий
             {
@@ -151,7 +159,7 @@ public class DocumentService
                         Quantity = line.Quantity,
                         UnitPrice = line.UnitPrice,
                         SellingPrice = line.SellingPrice,
-                        Series = series, // Заполняем поле Series
+                        Series = series, 
                         ExpirationDate = line.ExpirationDate,
                         Notes = line.Notes,
                         CreatedBatchId = null,
@@ -290,7 +298,7 @@ public class DocumentService
 
                 document.SignedAt = DateTime.Now;
                 if (string.IsNullOrEmpty(document.SignedBy))
-                    document.SignedBy = Environment.UserName;
+                    document.SignedBy = _currentUser;
             }
             else // Для черновика просто добавляем строки без списания
             {
@@ -352,7 +360,7 @@ public class DocumentService
                 CorrectionType = Models.CorrectionType.Quantity,
                 CorrectionReason = reason,
                 CreatedAt = DateTime.Now,
-                CreatedBy = Environment.UserName,
+                CreatedBy = _currentUser,
                 Status = DocumentStatus.Draft
             };
 
@@ -409,7 +417,7 @@ public class DocumentService
                     FieldName = "Quantity",
                     OldValue = oldQuantity.ToString(),
                     NewValue = correction.NewQuantity.ToString(),
-                    ChangedBy = Environment.UserName,
+                    ChangedBy = _currentUser,
                     Reason = reason
                 };
 
@@ -418,7 +426,7 @@ public class DocumentService
 
             correctionDoc.Status = DocumentStatus.Processed;
             correctionDoc.SignedAt = DateTime.Now;
-            correctionDoc.SignedBy = Environment.UserName;
+            correctionDoc.SignedBy = _currentUser;
 
             _db.SaveChanges();
             transaction.Commit();

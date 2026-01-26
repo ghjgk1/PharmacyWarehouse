@@ -18,43 +18,121 @@ namespace PharmacyWarehouse.Pages
         private readonly DocumentService _documentService;
         private ObservableCollection<DocumentViewModel> _documents;
         private ICollectionView _documentsView;
+        private readonly AuthService _authService;
+        private string _currentUser = String.Empty;
+
+        private List<DocumentViewModel> _allDocuments = new();
+        private List<DocumentViewModel> _filteredDocuments = new();
+        private List<DocumentViewModel> _currentPageDocuments = new();
+        private int _currentPage = 1;
+        private int _pageSize = 10;
+        private int _totalPages = 1;
+        private bool _isPageLoaded = false;
+
 
         private bool _showZeroAmount = true;
         public DocumentsPage()
         {
             InitializeComponent();
             _documentService = App.ServiceProvider.GetService<DocumentService>();
+            _authService = App.ServiceProvider.GetService<AuthService>();
+            _currentUser = AuthService.CurrentUser?.FullName ?? "Неизвестный пользователь";
+
             Loaded += DocumentsPage_Loaded;
         }
 
         private void DocumentsPage_Loaded(object sender, RoutedEventArgs e)
         {
+            _isPageLoaded = false;
             LoadDocuments();
-            UpdateStatistics();
+            _isPageLoaded = true; 
+            ApplyFilters();
+
+            var isAdmin = AuthService.IsAdmin();
+            btnCorrection.Visibility = isAdmin ? Visibility.Visible : Visibility.Collapsed;
+            btnBlock.Visibility = isAdmin ? Visibility.Visible : Visibility.Collapsed;
         }
 
         #region Загрузка данных
 
         private void LoadDocuments()
         {
-            _documents = new ObservableCollection<DocumentViewModel>();
-
-            // Загружаем все документы
-            var allDocuments = _documentService.Documents
-                .OrderByDescending(d => d.Date)
-                .ThenByDescending(d => d.Id);
-
-            foreach (var doc in allDocuments)
+            try
             {
-                _documents.Add(new DocumentViewModel(doc));
+                _documents = new ObservableCollection<DocumentViewModel>();
+                _allDocuments = new List<DocumentViewModel>();
+
+                var allDocuments = _documentService.Documents
+                    .OrderByDescending(d => d.Date)
+                    .ThenByDescending(d => d.Id);
+
+                foreach (var doc in allDocuments)
+                {
+                    var viewModel = new DocumentViewModel(doc);
+                    _allDocuments.Add(viewModel);
+                    _documents.Add(viewModel);
+                }
+
+                _filteredDocuments = _allDocuments.ToList();
+                _currentPage = 1;
+
+                UpdateDataGridWithFilters();
+                UpdateStatistics();
+                UpdatePageInfo();
+                UpdateFilterInfo();
             }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка загрузки документов: {ex.Message}",
+                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        private void UpdateDataGridWithoutFilters()
+        {
+            try
+            {
+                if (dgDocuments == null) return;
 
-            // Настраиваем представление с группировкой
-            _documentsView = CollectionViewSource.GetDefaultView(_documents);
-            _documentsView.GroupDescriptions.Add(new PropertyGroupDescription("GroupKey"));
+                var startIndex = (_currentPage - 1) * _pageSize;
+                _currentPageDocuments = _filteredDocuments
+                    .Skip(startIndex)
+                    .Take(_pageSize > 0 ? _pageSize : _filteredDocuments.Count)
+                    .ToList();
 
-            dgDocuments.ItemsSource = _documentsView;
-            UpdateFilterInfo();
+                var groupedCollection = new ListCollectionView(_currentPageDocuments);
+
+                if (chkGroupByType != null && chkGroupByType.IsChecked == true)
+                {
+                    groupedCollection.GroupDescriptions.Add(new PropertyGroupDescription("GroupKey"));
+                }
+
+                dgDocuments.ItemsSource = groupedCollection;
+                dgDocuments.UpdateLayout();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка обновления таблицы: {ex.Message}",
+                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void UpdateDataGridWithFilters()
+        {
+            try
+            {
+                ApplyDocumentFilters(); 
+                UpdateDataGridWithoutFilters();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка обновления таблицы: {ex.Message}",
+                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void UpdateDataGrid()
+        {
+            UpdateDataGridWithFilters();
         }
 
         private void UpdateStatistics()
@@ -70,6 +148,32 @@ namespace PharmacyWarehouse.Pages
             txtProcessedCount.Text = $"Проведенные: {_documents.Count(d => d.Status == DocumentStatus.Processed)}";
             txtBlockedCount.Text = $"Заблокированные: {_documents.Count(d => d.Status == DocumentStatus.Blocked)}";
         }
+
+        private void UpdatePageInfo()
+        {
+            if (!_isPageLoaded) return;
+
+            try
+            {
+                var filteredCount = _filteredDocuments.Count;
+                _totalPages = _pageSize > 0 ? (int)Math.Ceiling(filteredCount / (double)_pageSize) : 1;
+                if (_totalPages == 0) _totalPages = 1;
+
+                // Проверяем корректность текущей страницы
+                if (_currentPage > _totalPages)
+                {
+                    _currentPage = _totalPages;
+                }
+
+                txtTotalPages.Text = _totalPages.ToString();
+                txtCurrentPage.Text = _currentPage.ToString();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Ошибка в UpdatePageInfo: {ex.Message}");
+            }
+        }
+
 
         #endregion
 
@@ -196,6 +300,13 @@ namespace PharmacyWarehouse.Pages
         {
             if (dgDocuments.SelectedItem is DocumentViewModel selectedDoc)
             {
+                if (selectedDoc.Status != DocumentStatus.Draft)
+                {
+                    MessageBox.Show("Провести можно только черновики",
+                        "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
                 var result = MessageBox.Show(
                     $"Провести документ №{selectedDoc.Number}?\n" +
                     $"После проведения редактирование будет невозможно.",
@@ -212,7 +323,7 @@ namespace PharmacyWarehouse.Pages
                         {
                             document.Status = DocumentStatus.Processed;
                             document.SignedAt = DateTime.Now;
-                            document.SignedBy = Environment.UserName;
+                            document.SignedBy = _currentUser;
 
                             _documentService.Commit();
                             LoadDocuments(); // Обновляем список
@@ -312,68 +423,84 @@ namespace PharmacyWarehouse.Pages
 
         private void ApplyFilters()
         {
-            if (_documentsView == null) return;
-
-            _documentsView.Filter = obj =>
+            try
             {
-                if (obj is not DocumentViewModel doc) return false;
+                _currentPage = 1;
+                ApplyDocumentFilters();
+                UpdateDataGrid();
+                UpdateStatistics();
+                UpdatePageInfo();
+                UpdateFilterInfo();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка применения фильтров: {ex.Message}",
+                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
 
-                // Поиск по тексту
-                if (!string.IsNullOrWhiteSpace(SearchTextBox.Text))
+        private void ApplyDocumentFilters()
+        {
+            try
+            {
+                var filtered = _allDocuments.AsEnumerable();
+
+                if (!string.IsNullOrWhiteSpace(SearchTextBox?.Text))
                 {
                     var searchText = SearchTextBox.Text.ToLower();
-                    if (!doc.Number.ToLower().Contains(searchText) &&
-                        !(doc.CustomerName?.ToLower().Contains(searchText) ?? false) &&
-                        !(doc.Notes?.ToLower().Contains(searchText) ?? false))
-                        return false;
+                    filtered = filtered.Where(doc =>
+                        doc.Number.ToLower().Contains(searchText) ||
+                        (doc.CustomerName?.ToLower().Contains(searchText) ?? false) ||
+                        (doc.Notes?.ToLower().Contains(searchText) ?? false));
                 }
 
-                // Фильтр по типу документа
-                if (cmbDocumentType.SelectedIndex > 0)
+                if (cmbDocumentType?.SelectedIndex > 0 && cmbDocumentType.SelectedItem is ComboBoxItem typeItem)
                 {
-                    var selectedType = (cmbDocumentType.SelectedItem as ComboBoxItem)?.Tag?.ToString();
-                    if (selectedType != doc.Type.ToString())
-                        return false;
+                    var selectedType = typeItem.Tag?.ToString();
+                    if (!string.IsNullOrEmpty(selectedType))
+                    {
+                        filtered = filtered.Where(doc => doc.Type.ToString() == selectedType);
+                    }
+                }
+
+                if (cmbStatus?.SelectedIndex > 0 && cmbStatus.SelectedItem is ComboBoxItem statusItem)
+                {
+                    var selectedStatus = statusItem.Tag?.ToString();
+                    if (!string.IsNullOrEmpty(selectedStatus))
+                    {
+                        filtered = filtered.Where(doc => doc.Status.ToString() == selectedStatus);
+                    }
+                }
+
+                if (dpDateFrom?.SelectedDate.HasValue == true)
+                {
+                    filtered = filtered.Where(doc => doc.Date >= dpDateFrom.SelectedDate.Value);
+                }
+
+                if (dpDateTo?.SelectedDate.HasValue == true)
+                {
+                    filtered = filtered.Where(doc => doc.Date <= dpDateTo.SelectedDate.Value);
                 }
 
                 if (!_showZeroAmount)
                 {
-                    int hiddenZeroAmount = _documents.Count(d => d.Amount == 0 && !ShouldShowDocument(d));
-                    if (hiddenZeroAmount > 0)
-                    {
-                        txtFilterInfo.Text += $" (скрыто с нулевой суммой: {hiddenZeroAmount})";
-                    }
+                    filtered = filtered.Where(doc => doc.Amount != 0);
                 }
 
-                // Фильтр по статусу
-                if (cmbStatus.SelectedIndex > 0)
-                {
-                    var selectedStatus = (cmbStatus.SelectedItem as ComboBoxItem)?.Tag?.ToString();
-                    if (selectedStatus != doc.Status.ToString())
-                        return false;
-                }
-
-                // Фильтр по дате
-                if (dpDateFrom.SelectedDate.HasValue && doc.Date < dpDateFrom.SelectedDate.Value)
-                    return false;
-
-                if (dpDateTo.SelectedDate.HasValue && doc.Date > dpDateTo.SelectedDate.Value)
-                    return false;
-
-                // Фильтр по нулевой сумме
-                if (!chkShowZeroAmount.IsChecked.GetValueOrDefault() && doc.Amount == 0)
-                    return false;
-
-                return true;
-            };
-
-            UpdateFilterInfo();
+                _filteredDocuments = filtered.ToList();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Ошибка в ApplyDocumentFilters: {ex.Message}");
+                _filteredDocuments = _allDocuments.ToList();
+            }
         }
+
         private bool ShouldShowDocument(DocumentViewModel doc)
         {
             if (!_showZeroAmount && doc.Amount == 0)
             {
-                return false; 
+                return false;
             }
 
             return true;
@@ -393,27 +520,21 @@ namespace PharmacyWarehouse.Pages
 
         private void UpdateFilterInfo()
         {
-            if (_documentsView == null) return;
+            if (_filteredDocuments == null) return;
 
-            int count = _documentsView.Cast<object>().Count();
-            txtFilterInfo.Text = $"Найдено: {count}";
+            int count = _filteredDocuments.Count;
+            if (txtFilterInfo != null)
+                txtFilterInfo.Text = $"Найдено: {count}";
         }
 
         private void ChkGroupByType_Checked(object sender, RoutedEventArgs e)
         {
-            if (_documentsView != null)
-            {
-                _documentsView.GroupDescriptions.Clear();
-                _documentsView.GroupDescriptions.Add(new PropertyGroupDescription("GroupKey"));
-            }
+            UpdateDataGrid();
         }
 
         private void ChkGroupByType_Unchecked(object sender, RoutedEventArgs e)
         {
-            if (_documentsView != null)
-            {
-                _documentsView.GroupDescriptions.Clear();
-            }
+            UpdateDataGrid();
         }
 
         #endregion
@@ -422,48 +543,64 @@ namespace PharmacyWarehouse.Pages
 
         private void CmbPageSize_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            // Простая реализация пагинации
-            if (cmbPageSize.SelectedItem is ComboBoxItem item && int.TryParse(item.Tag?.ToString(), out int pageSize))
+            if (!_isPageLoaded) return;
+
+            if (cmbPageSize.SelectedItem is ComboBoxItem selectedItem &&
+                selectedItem.Tag is string tag &&
+                int.TryParse(tag, out int newSize))
             {
-                // Здесь можно добавить логику пагинации
+                _pageSize = newSize;
+                _currentPage = 1;
+                UpdateDataGrid();
+                UpdatePageInfo();
             }
         }
 
         private void FirstPage_Click(object sender, RoutedEventArgs e)
         {
-            txtCurrentPage.Text = "1";
-            // Здесь можно добавить логику перехода на первую страницу
+            _currentPage = 1;
+            UpdateDataGrid();
+            UpdatePageInfo();
         }
 
         private void PrevPage_Click(object sender, RoutedEventArgs e)
         {
-            if (int.TryParse(txtCurrentPage.Text, out int currentPage) && currentPage > 1)
+            if (_currentPage > 1)
             {
-                txtCurrentPage.Text = (currentPage - 1).ToString();
-                // Здесь можно добавить логику перехода на предыдущую страницу
+                _currentPage--;
+                UpdateDataGrid();
+                UpdatePageInfo();
             }
         }
 
         private void NextPage_Click(object sender, RoutedEventArgs e)
         {
-            if (int.TryParse(txtCurrentPage.Text, out int currentPage))
+            if (_currentPage < _totalPages)
             {
-                txtCurrentPage.Text = (currentPage + 1).ToString();
-                // Здесь можно добавить логику перехода на следующую страницу
+                _currentPage++;
+                UpdateDataGrid();
+                UpdatePageInfo();
             }
         }
 
         private void LastPage_Click(object sender, RoutedEventArgs e)
         {
-            // Здесь можно добавить логику перехода на последнюю страницу
+            _currentPage = _totalPages;
+            UpdateDataGrid();
+            UpdatePageInfo();
         }
 
         private void TxtCurrentPage_TextChanged(object sender, TextChangedEventArgs e)
         {
-            // Валидация номера страницы
-            if (int.TryParse(txtCurrentPage.Text, out int page) && page < 1)
+            if (!_isPageLoaded) return;
+
+            if (int.TryParse(txtCurrentPage.Text, out int page) &&
+                page >= 1 && page <= _totalPages &&
+                page != _currentPage)
             {
-                txtCurrentPage.Text = "1";
+                _currentPage = page;
+                UpdateDataGrid();
+                UpdatePageInfo();
             }
         }
 
@@ -606,7 +743,7 @@ namespace PharmacyWarehouse.Pages
 
                 if (document.Type != DocumentType.Incoming)
                 {
-                    
+
                     var hasBatches = document.DocumentLines
                         .Any(l => l.CreatedBatchId.HasValue || l.SourceBatchId.HasValue);
 
@@ -618,7 +755,7 @@ namespace PharmacyWarehouse.Pages
                     }
                 }
 
-                
+
                 var correctionWindow = new CorrectionDocumentWindow(document)
                 {
                     Owner = Application.Current.MainWindow
@@ -628,7 +765,7 @@ namespace PharmacyWarehouse.Pages
 
                 if (result == true)
                 {
-                    
+
                     LoadDocuments();
                     UpdateStatistics();
 
@@ -663,33 +800,28 @@ namespace PharmacyWarehouse.Pages
 
     #region ViewModel для отображения документов
 
-    #region ViewModel для отображения документов
-
     public class DocumentViewModel : INotifyPropertyChanged
     {
         private readonly Document _document;
-        private string _correctionReason;
-        private string _supplierName;
-        private string _customerName;
-        private string _notes;
-        private decimal _amount;
-        private string _writeOffReason;
-        private int _linesCount;
-        private string _typeDisplayName;
-        private string _typeIcon;
-        private string _groupKey;
-        private string _statusDisplayName;
-        private string _baseDocumentInfo;
-        private string _correctionTypeDisplayName;
+        private readonly string _correctionReason;
+        private readonly string _supplierName;
+        private readonly string _customerName;
+        private readonly string _notes;
+        private readonly decimal _amount;
+        private readonly string _writeOffReason;
+        private readonly int _linesCount;
+        private readonly string _typeDisplayName;
+        private readonly string _typeIcon;
+        private readonly string _groupKey;
+        private readonly string _statusDisplayName;
+        private readonly string _baseDocumentInfo;
+        private readonly string _correctionTypeDisplayName;
+        public string Number => _document.Number;
 
         public DocumentViewModel(Document document)
         {
-            _document = document;
-            InitializeProperties();
-        }
+            _document = document ?? throw new ArgumentNullException(nameof(document));
 
-        private void InitializeProperties()
-        {
             _correctionReason = _document.CorrectionReason ?? "-";
             _supplierName = _document.Supplier?.Name ?? "-";
             _customerName = _document.CustomerName ?? "-";
@@ -705,309 +837,30 @@ namespace PharmacyWarehouse.Pages
             _correctionTypeDisplayName = GetCorrectionTypeDisplayName();
         }
 
-        public int Id
-        {
-            get => _document.Id;
-            set
-            {
-                if (_document.Id != value)
-                {
-                    _document.Id = value;
-                    OnPropertyChanged(nameof(Id));
-                }
-            }
-        }
+        // Все свойства только для чтения
+        public int Id => _document.Id;
+        public DateTime Date => _document.Date;
+        public DateTime CreatedAt => _document.CreatedAt;
+        public string CreatedBy => _document.CreatedBy;
+        public DocumentType Type => _document.Type;
+        public DocumentStatus Status => _document.Status;
+        public string CustomerName => _customerName;
+        public string Notes => _notes;
+        public decimal Amount => _amount;
+        public string SupplierName => _supplierName;
+        public string WriteOffReason => _writeOffReason;
+        public string CorrectionReason => _correctionReason;
+        public int LinesCount => _linesCount;
+        public int? OriginalDocumentId => _document.OriginalDocumentId;
+        public string CorrectionTypeDisplayName => _correctionTypeDisplayName;
+        public string TypeDisplayName => _typeDisplayName;
+        public string TypeIcon => _typeIcon;
+        public string GroupKey => _groupKey;
+        public string BaseDocumentInfo => _baseDocumentInfo;
+        public string StatusDisplayName => _statusDisplayName;
+        public CorrectionType? CorrectionType => _document.CorrectionType;
 
-        public string Number
-        {
-            get => _document.Number;
-            set
-            {
-                if (_document.Number != value)
-                {
-                    _document.Number = value;
-                    OnPropertyChanged(nameof(Number));
-                }
-            }
-        }
-
-        public DateTime Date
-        {
-            get => _document.Date;
-            set
-            {
-                if (_document.Date != value)
-                {
-                    _document.Date = value;
-                    OnPropertyChanged(nameof(Date));
-                }
-            }
-        }
-
-        public DateTime CreatedAt
-        {
-            get => _document.CreatedAt;
-            set
-            {
-                if (_document.CreatedAt != value)
-                {
-                    _document.CreatedAt = value;
-                    OnPropertyChanged(nameof(CreatedAt));
-                }
-            }
-        }
-
-        public string CreatedBy
-        {
-            get => _document.CreatedBy;
-            set
-            {
-                if (_document.CreatedBy != value)
-                {
-                    _document.CreatedBy = value;
-                    OnPropertyChanged(nameof(CreatedBy));
-                }
-            }
-        }
-
-        public DocumentType Type
-        {
-            get => _document.Type;
-            set
-            {
-                if (_document.Type != value)
-                {
-                    _document.Type = value;
-                    OnPropertyChanged(nameof(Type));
-                    // Обновляем зависимые свойства
-                    TypeDisplayName = GetTypeDisplayName();
-                    TypeIcon = GetTypeIcon();
-                    GroupKey = GetGroupKey();
-                }
-            }
-        }
-
-        public DocumentStatus Status
-        {
-            get => _document.Status;
-            set
-            {
-                if (_document.Status != value)
-                {
-                    _document.Status = value;
-                    OnPropertyChanged(nameof(Status));
-                    StatusDisplayName = GetStatusDisplayName();
-                }
-            }
-        }
-
-        public string CustomerName
-        {
-            get => _customerName;
-            set
-            {
-                if (_customerName != value)
-                {
-                    _customerName = value;
-                    OnPropertyChanged(nameof(CustomerName));
-                    _document.CustomerName = value == "-" ? null : value;
-                }
-            }
-        }
-
-        public string Notes
-        {
-            get => _notes;
-            set
-            {
-                if (_notes != value)
-                {
-                    _notes = value;
-                    OnPropertyChanged(nameof(Notes));
-                    _document.Notes = value == "-" ? null : value;
-                    WriteOffReason = ExtractWriteOffReason(value);
-                }
-            }
-        }
-
-        public decimal Amount
-        {
-            get => _amount;
-            set
-            {
-                if (_amount != value)
-                {
-                    _amount = value;
-                    OnPropertyChanged(nameof(Amount));
-                    _document.Amount = value;
-                }
-            }
-        }
-
-        public string SupplierName
-        {
-            get => _supplierName;
-            set
-            {
-                if (_supplierName != value)
-                {
-                    _supplierName = value;
-                    OnPropertyChanged(nameof(SupplierName));
-
-                    if (_document.Supplier != null && value != "-")
-                    {
-                        _document.Supplier.Name = value;
-                    }
-                }
-            }
-        }
-
-        public string WriteOffReason
-        {
-            get => _writeOffReason;
-            private set
-            {
-                if (_writeOffReason != value)
-                {
-                    _writeOffReason = value;
-                    OnPropertyChanged(nameof(WriteOffReason));
-                }
-            }
-        }
-
-        public string CorrectionReason
-        {
-            get => _correctionReason;
-            set
-            {
-                if (_correctionReason != value)
-                {
-                    _correctionReason = value;
-                    OnPropertyChanged(nameof(CorrectionReason));
-                    _document.CorrectionReason = value == "-" ? null : value;
-                }
-            }
-        }
-
-        public int LinesCount
-        {
-            get => _linesCount;
-            set
-            {
-                if (_linesCount != value)
-                {
-                    _linesCount = value;
-                    OnPropertyChanged(nameof(LinesCount));
-                }
-            }
-        }
-
-        public int? OriginalDocumentId
-        {
-            get => _document.OriginalDocumentId;
-            set
-            {
-                if (_document.OriginalDocumentId != value)
-                {
-                    _document.OriginalDocumentId = value;
-                    OnPropertyChanged(nameof(OriginalDocumentId));
-                    BaseDocumentInfo = GetBaseDocumentInfo();
-                }
-            }
-        }
-
-        public string CorrectionTypeDisplayName
-        {
-            get => _correctionTypeDisplayName;
-            set
-            {
-                if (_correctionTypeDisplayName != value)
-                {
-                    _correctionTypeDisplayName = value;
-                    OnPropertyChanged(nameof(CorrectionTypeDisplayName));
-                }
-            }
-        }
-
-        public string TypeDisplayName
-        {
-            get => _typeDisplayName;
-            set
-            {
-                if (_typeDisplayName != value)
-                {
-                    _typeDisplayName = value;
-                    OnPropertyChanged(nameof(TypeDisplayName));
-                }
-            }
-        }
-
-        public string TypeIcon
-        {
-            get => _typeIcon;
-            set
-            {
-                if (_typeIcon != value)
-                {
-                    _typeIcon = value;
-                    OnPropertyChanged(nameof(TypeIcon));
-                }
-            }
-        }
-
-        public string GroupKey
-        {
-            get => _groupKey;
-            set
-            {
-                if (_groupKey != value)
-                {
-                    _groupKey = value;
-                    OnPropertyChanged(nameof(GroupKey));
-                }
-            }
-        }
-
-        public string BaseDocumentInfo
-        {
-            get => _baseDocumentInfo;
-            set
-            {
-                if (_baseDocumentInfo != value)
-                {
-                    _baseDocumentInfo = value;
-                    OnPropertyChanged(nameof(BaseDocumentInfo));
-                }
-            }
-        }
-
-        public string StatusDisplayName
-        {
-            get => _statusDisplayName;
-            set
-            {
-                if (_statusDisplayName != value)
-                {
-                    _statusDisplayName = value;
-                    OnPropertyChanged(nameof(StatusDisplayName));
-                }
-            }
-        }
-
-        public CorrectionType? CorrectionType
-        {
-            get => _document.CorrectionType;
-            set
-            {
-                if (_document.CorrectionType != value)
-                {
-                    _document.CorrectionType = value;
-                    OnPropertyChanged(nameof(CorrectionType));
-                    CorrectionTypeDisplayName = GetCorrectionTypeDisplayName();
-                }
-            }
-        }
-
+        // Вспомогательные методы для вычисляемых свойств
         private string GetTypeDisplayName()
         {
             return _document.Type switch
@@ -1089,13 +942,21 @@ namespace PharmacyWarehouse.Pages
 
         public event PropertyChangedEventHandler PropertyChanged;
 
+        // Метод для обновления ViewModel при изменении документа
+        public DocumentViewModel UpdateFromDocument(Document updatedDocument)
+        {
+            if (updatedDocument == null)
+                return this;
+
+            // Создаем новый экземпляр с обновленными данными
+            return new DocumentViewModel(updatedDocument);
+        }
+
         protected virtual void OnPropertyChanged(string propertyName)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
     }
-
-    #endregion
-
     #endregion
 }
+

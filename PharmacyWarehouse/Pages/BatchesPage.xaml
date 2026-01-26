@@ -91,190 +91,274 @@
                 </Grid>
             </Border>
 
-            <Border Style="{StaticResource Card}" Padding="12" >
+            <Border Style="{StaticResource Card}" Padding="12">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="2*"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <Grid>
+
+                    <!-- Левая часть - таблица с пагинацией -->
+                    <Grid Grid.Column="0">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                             <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
                         <!-- Заголовок -->
-                        <Border Grid.Row="0" Margin="12 0" Style="{StaticResource CardHeader}">
+                        <Border Grid.Row="0" Margin="0,0,0,12" Style="{StaticResource CardHeader}">
                             <TextBlock Text="Список партий" Style="{StaticResource H3}" Foreground="{StaticResource TextWhiteBrush}"/>
                         </Border>
 
-                        <!-- Таблица -->
-                        <DataGrid x:Name="dgBatches" 
-              Grid.Row="1"
-              AutoGenerateColumns="False"
-              SelectionChanged="DgBatches_SelectionChanged" Margin="12 0">
+                        <!-- ScrollViewer для таблицы -->
+                        <ScrollViewer Grid.Row="1" 
+                          VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Auto"
+                          CanContentScroll="True">
+                            <DataGrid x:Name="dgBatches"
+                          AutoGenerateColumns="False"
+                          SelectionChanged="DgBatches_SelectionChanged"
+                          HorizontalScrollBarVisibility="Disabled"
+                          VerticalScrollBarVisibility="Disabled"
+                          CanUserAddRows="False"
+                          CanUserDeleteRows="False"
+                          CanUserReorderColumns="False"
+                          CanUserResizeRows="False"
+                          CanUserSortColumns="True"
+                          IsReadOnly="True"
+                          SelectionMode="Single"
+                          GridLinesVisibility="None">
+                                <DataGrid.Columns>
+                                    <!-- Товар -->
+                                    <DataGridTextColumn Header="Товар" 
+                                            Width="200"
+                                            Binding="{Binding Product.Name}"/>
 
-                            <DataGrid.Columns>
-                                <!-- Номер партии -->
-                                <DataGridTextColumn Header="Номер" 
-                               Width="120"
-                               Binding="{Binding BatchNumber}"
-                               ElementStyle="{StaticResource DataGridCellCenter}"/>
+                                    <!-- Поставщик -->
+                                    <DataGridTextColumn Header="Поставщик" 
+                                            Width="150"
+                                            Binding="{Binding Supplier.Name}"/>
 
-                                <!-- Товар -->
-                                <DataGridTextColumn Header="Товар" 
-                               Width="200"
-                               Binding="{Binding Product.Name}"/>
+                                    <!-- Срок годности -->
+                                    <DataGridTextColumn Header="Срок годности" 
+                                            Width="120"
+                                            Binding="{Binding ExpirationDate, StringFormat='dd.MM.yyyy'}">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsExpired}" Value="True">
+                                                        <Setter Property="Foreground" Value="{StaticResource AccentRedBrush}"/>
+                                                        <Setter Property="FontWeight" Value="Bold"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding IsExpiring}" Value="True">
+                                                        <Setter Property="Foreground" Value="{StaticResource AccentOrangeBrush}"/>
+                                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
 
-                                <!-- Поставщик -->
-                                <DataGridTextColumn Header="Поставщик" 
-                               Width="150"
-                               Binding="{Binding Supplier.Name}"/>
+                                    <!-- Остаток -->
+                                    <DataGridTextColumn Header="Остаток" 
+                                            Width="100"
+                                            Binding="{Binding Quantity}">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
 
-                                <!-- Срок годности -->
-                                <DataGridTextColumn Header="Срок годности" 
-                               Width="120"
-                               Binding="{Binding ExpirationDate, StringFormat='dd.MM.yyyy'}">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="HorizontalAlignment" Value="Center"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsExpired}" Value="True">
-                                                    <Setter Property="Foreground" Value="{StaticResource AccentRedBrush}"/>
-                                                    <Setter Property="FontWeight" Value="Bold"/>
-                                                </DataTrigger>
-                                                <DataTrigger Binding="{Binding IsExpiring}" Value="True">
-                                                    <Setter Property="Foreground" Value="{StaticResource AccentOrangeBrush}"/>
-                                                    <Setter Property="FontWeight" Value="SemiBold"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
+                                    <!-- Цена закупки -->
+                                    <DataGridTextColumn Header="Цена закупки" 
+                                            Width="120"
+                                            Binding="{Binding PurchasePrice, StringFormat='N2'}">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
 
-                                <!-- Остаток -->
-                                <DataGridTextColumn Header="Остаток" 
-                               Width="100"
-                               Binding="{Binding CurrentQuantity}">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="HorizontalAlignment" Value="Right"/>
-                                            <Setter Property="VerticalAlignment" Value="Center"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
+                                    <!-- Дата поставки -->
+                                    <DataGridTextColumn Header="Дата поставки" 
+                                            Width="120"
+                                            Binding="{Binding ArrivalDate, StringFormat='dd.MM.yyyy'}"
+                                            ElementStyle="{StaticResource DataGridCellCenter}"/>
 
-                                <!-- Цена закупки -->
-                                <DataGridTextColumn Header="Цена закупки" 
-                               Width="120"
-                               Binding="{Binding PurchasePrice, StringFormat='N2'}">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="HorizontalAlignment" Value="Right"/>
-                                            <Setter Property="VerticalAlignment" Value="Center"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
+                                    <!-- Статус -->
+                                    <DataGridTemplateColumn Header="Статус" Width="100">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <Border CornerRadius="12" 
+                                            Padding="6,2"
+                                            HorizontalAlignment="Center">
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="Background" Value="{StaticResource AccentGreenBrush}"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsExpired}" Value="True">
+                                                                    <Setter Property="Background" Value="{StaticResource AccentRedBrush}"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding IsExpiring}" Value="True">
+                                                                    <Setter Property="Background" Value="{StaticResource AccentOrangeBrush}"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding IsWriteOff}" Value="True">
+                                                                    <Setter Property="Background" Value="{StaticResource GrayBrush}"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
+                                                    <TextBlock Text="{Binding StatusText}"
+                                                   Foreground="White"
+                                                   FontWeight="SemiBold"
+                                                   FontSize="11"
+                                                   HorizontalAlignment="Center"/>
+                                                </Border>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                </DataGrid.Columns>
 
-                                <!-- Дата поставки -->
-                                <DataGridTextColumn Header="Дата поставки" 
-                               Width="120"
-                               Binding="{Binding DeliveryDate, StringFormat='dd.MM.yyyy'}"
-                               ElementStyle="{StaticResource DataGridCellCenter}"/>
+                                <DataGrid.RowStyle>
+                                    <Style TargetType="DataGridRow">
+                                        <Setter Property="Height" Value="35"/>
+                                        <Style.Triggers>
+                                            <!-- Выделение просроченных партий -->
+                                            <DataTrigger Binding="{Binding IsExpired}" Value="True">
+                                                <Setter Property="Background" Value="{StaticResource ProductExpiredBrush}"/>
+                                            </DataTrigger>
+                                            <!-- Выделение партий с истекающим сроком -->
+                                            <DataTrigger Binding="{Binding IsExpiring}" Value="True">
+                                                <Setter Property="Background" Value="{StaticResource ProductExpiringBrush}"/>
+                                            </DataTrigger>
+                                            <!-- Выделение списанных партий -->
+                                            <DataTrigger Binding="{Binding IsWriteOff}" Value="True">
+                                                <Setter Property="Foreground" Value="{StaticResource GrayBrush}"/>
+                                                <Setter Property="FontStyle" Value="Italic"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </DataGrid.RowStyle>
+                            </DataGrid>
+                        </ScrollViewer>
 
-                                <!-- Статус -->
-                                <DataGridTemplateColumn Header="Статус" Width="100">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <Border CornerRadius="12" 
-                               Padding="6,2"
-                               HorizontalAlignment="Center">
-                                                <Border.Style>
-                                                    <Style TargetType="Border">
-                                                        <Setter Property="Background" Value="{StaticResource AccentGreenBrush}"/>
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding IsExpired}" Value="True">
-                                                                <Setter Property="Background" Value="{StaticResource AccentRedBrush}"/>
-                                                            </DataTrigger>
-                                                            <DataTrigger Binding="{Binding IsExpiring}" Value="True">
-                                                                <Setter Property="Background" Value="{StaticResource AccentOrangeBrush}"/>
-                                                            </DataTrigger>
-                                                            <DataTrigger Binding="{Binding IsWriteOff}" Value="True">
-                                                                <Setter Property="Background" Value="{StaticResource GrayBrush}"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </Border.Style>
-                                                <TextBlock Text="{Binding StatusText}"
-                                      Foreground="White"
-                                      FontWeight="SemiBold"
-                                      FontSize="11"
-                                      HorizontalAlignment="Center"/>
-                                            </Border>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
+                        <!-- Пагинация -->
+                        <Border Grid.Row="2" 
+                    Background="{StaticResource BackgroundLightBrush}"
+                    BorderBrush="{StaticResource BorderLightBrush}"
+                    BorderThickness="0,1,0,0"
+                    Padding="12">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
 
-                            </DataGrid.Columns>
+                                <!-- Выбор размера страницы -->
+                                <StackPanel Grid.Column="1" 
+                                Orientation="Horizontal" 
+                                VerticalAlignment="Center"
+                                Margin="0,0,16,0">
+                                    <TextBlock Text="Показывать по:" 
+                                  VerticalAlignment="Center" 
+                                  Margin="0,0,8,0"/>
+                                    <ComboBox x:Name="cmbPageSize" 
+                                  Width="80"
+                                  SelectionChanged="CmbPageSize_SelectionChanged">
+                                        <ComboBoxItem Content="10" Tag="10" IsSelected="True"/>
+                                        <ComboBoxItem Content="25" Tag="25"/>
+                                        <ComboBoxItem Content="50" Tag="50"/>
+                                        <ComboBoxItem Content="100" Tag="100"/>
+                                        <ComboBoxItem Content="Все" Tag="0"/>
+                                    </ComboBox>
+                                </StackPanel>
 
-                            <DataGrid.RowStyle>
-                                <Style TargetType="DataGridRow">
-                                    <Style.Triggers>
-                                        <!-- Выделение просроченных партий -->
-                                        <DataTrigger Binding="{Binding IsExpired}" Value="True">
-                                            <Setter Property="Background" Value="{StaticResource ProductExpiredBrush}"/>
-                                        </DataTrigger>
-                                        <!-- Выделение партий с истекающим сроком -->
-                                        <DataTrigger Binding="{Binding IsExpiring}" Value="True">
-                                            <Setter Property="Background" Value="{StaticResource ProductExpiringBrush}"/>
-                                        </DataTrigger>
-                                        <!-- Выделение списанных партий -->
-                                        <DataTrigger Binding="{Binding IsWriteOff}" Value="True">
-                                            <Setter Property="Foreground" Value="{StaticResource GrayBrush}"/>
-                                            <Setter Property="FontStyle" Value="Italic"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </DataGrid.RowStyle>
-                        </DataGrid>
+                                <!-- Навигация по страницам -->
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Button Content="⏮️" 
+                                Style="{StaticResource IconButton}" 
+                                ToolTip="В начало"
+                                Click="FirstPage_Click"/>
+                                    <Button Content="◀️" 
+                                Style="{StaticResource IconButton}" 
+                                ToolTip="Предыдущая страница"
+                                Click="PrevPage_Click"
+                                Margin="4,0,0,0"/>
+
+                                    <TextBlock Text="Страница " 
+                                  VerticalAlignment="Center" 
+                                  Margin="8,0,4,0"/>
+                                    <TextBox x:Name="txtCurrentPage" 
+                                 Text="1" 
+                                 Width="40" 
+                                 TextAlignment="Center" 
+                                 VerticalAlignment="Center"
+                                 TextChanged="TxtCurrentPage_TextChanged"/>
+                                    <TextBlock Text=" из " 
+                                  VerticalAlignment="Center" 
+                                  Margin="4,0,4,0"/>
+                                    <TextBlock x:Name="txtTotalPages" 
+                                   Text="1" 
+                                   VerticalAlignment="Center"
+                                   FontWeight="SemiBold"/>
+
+                                    <Button Content="▶️" 
+                                Style="{StaticResource IconButton}" 
+                                ToolTip="Следующая страница"
+                                Click="NextPage_Click"
+                                Margin="8,0,4,0"/>
+                                    <Button Content="⏭️" 
+                                Style="{StaticResource IconButton}" 
+                                ToolTip="В конец"
+                                Click="LastPage_Click"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
 
                         <!-- Итоги -->
-                        <Border Grid.Row="2" 
-           Background="{StaticResource BackgroundLightBrush}"
-           BorderBrush="{StaticResource BorderLightBrush}"
-           BorderThickness="0,1,0,0"
-           Padding="12">
+                        <Border Grid.Row="3" 
+                    Background="{StaticResource BackgroundLightBrush}"
+                    BorderBrush="{StaticResource BorderLightBrush}"
+                    BorderThickness="0,1,0,0"
+                    Padding="12">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="Всего партий: " Style="{StaticResource BodyText}"/>
                                 <TextBlock x:Name="txtTotalCount" Text="0" 
-                      FontWeight="SemiBold" 
-                      Margin="0,0,24,0"/>
+                              FontWeight="SemiBold" 
+                              Margin="0,0,24,0"/>
 
                                 <TextBlock Text="Общий остаток: " Style="{StaticResource BodyText}"/>
                                 <TextBlock x:Name="txtTotalQuantity" Text="0" 
-                      FontWeight="SemiBold"
-                      Margin="0,0,24,0"/>
+                              FontWeight="SemiBold"
+                              Margin="0,0,24,0"/>
 
                                 <TextBlock Text="Общая стоимость: " Style="{StaticResource BodyText}"/>
                                 <TextBlock x:Name="txtTotalValue" Text="0.00" 
-                      FontWeight="SemiBold"
-                      Foreground="{StaticResource AccentGreenBrush}"
-                      Margin="0,0,0,0"/>
+                              FontWeight="SemiBold"
+                              Foreground="{StaticResource AccentGreenBrush}"
+                              Margin="0,0,0,0"/>
                                 <TextBlock Text=" руб." Style="{StaticResource Caption}"/>
                             </StackPanel>
                         </Border>
                     </Grid>
-                    
-                    <!-- Информация о партии -->
-                    <StackPanel Grid.Column="1" Margin="0,0,12,0">
+
+                    <!-- Правая часть - информация о партии -->
+                    <StackPanel Grid.Column="1" Margin="24,0,0,0">
                         <TextBlock Text="Информация о партии" Style="{StaticResource H3}" Margin="0,0,0,12"/>
 
                         <Border Style="{StaticResource InfoBox}">
                             <StackPanel>
                                 <TextBlock x:Name="txtSelectedBatch" Text="Партия не выбрана" 
-                                          FontWeight="SemiBold"
-                                          Margin="0,0,0,8"/>
+                              FontWeight="SemiBold"
+                              Margin="0,0,0,8"/>
                                 <TextBlock x:Name="txtBatchProduct" Text="Товар: -" Style="{StaticResource BodyText}"/>
                                 <TextBlock x:Name="txtBatchSupplier" Text="Поставщик: -" Style="{StaticResource BodyText}"/>
                                 <TextBlock x:Name="txtBatchExpiration" Text="Срок годности: -" Style="{StaticResource BodyText}"/>

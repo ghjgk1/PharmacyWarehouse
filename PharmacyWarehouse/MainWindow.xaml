@@ -113,30 +113,39 @@
                     <Border Background="{StaticResource PrimaryLightBrush}"
         CornerRadius="6"
         Padding="12,8">
-                        <StackPanel Orientation="Horizontal">
-                            <Border Background="{StaticResource SecondaryBrush}"
-                CornerRadius="20"
-                Width="32" Height="32"
-                VerticalAlignment="Center">
-                                <TextBlock Text="👤" 
-                      HorizontalAlignment="Center"
-                      VerticalAlignment="Center"/>
-                            </Border>
-                            <StackPanel Margin="12,0,0,0">
-                                <TextBlock x:Name="UserNameText"
-                      Foreground="{StaticResource TextWhiteBrush}"
-                      FontWeight="SemiBold"/>
-                                <TextBlock x:Name="UserRoleText"
-                      Style="{StaticResource Caption}"
+                        <Button Background="{StaticResource PrimaryLightBrush}"
+                                Click="LogoutButton_Click"
+                                Cursor="Hand">
+
+                            <Button.Content>
+                                <StackPanel Orientation="Horizontal">
+                                    <Border Background="{StaticResource SecondaryBrush}"
+                    CornerRadius="20"
+                    Width="32" Height="32"
+                    VerticalAlignment="Center">
+                                        <TextBlock Text="👤" 
+                          HorizontalAlignment="Center"
+                          VerticalAlignment="Center"/>
+                                    </Border>
+
+                                    <StackPanel Margin="12,0,0,0">
+                                        <TextBlock x:Name="UserNameText"
+                          Foreground="{StaticResource TextWhiteBrush}"
+                          FontWeight="SemiBold"/>
+                                        <TextBlock x:Name="UserRoleText"
+                          Style="{StaticResource Caption}"
+                          Foreground="{StaticResource GrayLighterBrush}"/>
+                                    </StackPanel>
+
+                                    <!-- Можно оставить иконку выхода или убрать, так как весь блок теперь кнопка -->
+                                    <TextBlock Text="➡️" 
+                      FontSize="16"
+                      Margin="12,0,0,0"
+                      VerticalAlignment="Center"
                       Foreground="{StaticResource GrayLighterBrush}"/>
-                            </StackPanel>
-                            <!-- Кнопка выхода -->
-                            <Button Style="{StaticResource IconButton}"
-                                    Margin="12,0,0,0"
-                                    Click="LogoutButton_Click">
-                                <TextBlock Text="" FontSize="16"/>
-                            </Button>
-                        </StackPanel>
+                                </StackPanel>
+                            </Button.Content>
+                        </Button>
                     </Border>
                 </StackPanel>
             </Grid>

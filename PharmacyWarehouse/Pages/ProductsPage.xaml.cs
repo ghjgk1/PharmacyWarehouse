@@ -14,16 +14,22 @@ namespace PharmacyWarehouse.Pages
     {
         private readonly ProductService _productService;
         private readonly CategoryService _categoryService;
+        private readonly AuthService _authService;
         private ICollectionView _productsView;
         private List<Product> _allProducts = new();
         private int _currentPage = 1;
         private int _pageSize = 25;
-        private int _totalPages = 1;
+        private int _totalPages = 1; 
+        private string _currentUser = String.Empty;
 
         private bool _isPageLoaded = false;
 
         public ProductsPage()
         {
+            _authService = App.ServiceProvider.GetService<AuthService>();
+
+            _currentUser = AuthService.CurrentUser?.FullName ?? "Неизвестный пользователь";
+
             InitializeComponent();
             _productService = App.ServiceProvider.GetService<ProductService>();
             _categoryService = App.ServiceProvider.GetService<CategoryService>();
@@ -38,6 +44,10 @@ namespace PharmacyWarehouse.Pages
             _isPageLoaded = false;
             LoadProducts();
             _isPageLoaded = true;
+            ApplyFilters();
+
+            var isAdmin = AuthService.IsAdmin();
+            Admin.Visibility = isAdmin ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private void LoadProducts()
@@ -51,6 +61,7 @@ namespace PharmacyWarehouse.Pages
                 LoadCategories();
                 UpdateStatistics();
                 UpdatePageInfo();
+                ApplyFilters();
             }
             catch (Exception ex)
             {
@@ -62,7 +73,6 @@ namespace PharmacyWarehouse.Pages
         {
             _productsView = CollectionViewSource.GetDefaultView(_allProducts);
             _productsView.Filter = FilterProduct;
-            dgProducts.ItemsSource = _productsView;
         }
 
         #endregion
@@ -94,23 +104,23 @@ namespace PharmacyWarehouse.Pages
 
             switch (cmbPrescription.SelectedIndex)
             {
-                case 1: 
+                case 1:
                     if (product.RequiresPrescription != true) return false;
                     break;
-                case 2: 
+                case 2:
                     if (product.RequiresPrescription == true) return false;
                     break;
             }
 
             switch (cmbAvailability.SelectedIndex)
             {
-                case 1: 
+                case 1:
                     if (!product.IsInStock) return false;
                     break;
-                case 2: 
+                case 2:
                     if (!product.IsOutOfStock) return false;
                     break;
-                case 3: 
+                case 3:
                     if (!product.IsLowStock) return false;
                     break;
             }
@@ -129,9 +139,39 @@ namespace PharmacyWarehouse.Pages
 
         private void ApplyFilters()
         {
+            if (!_isPageLoaded || dgProducts == null) return;
+
             _productsView?.Refresh();
             UpdateStatistics();
             UpdatePageInfo();
+
+            var currentPageProducts = GetCurrentPageProducts();
+            dgProducts.ItemsSource = currentPageProducts;
+        }
+
+        private List<Product> GetCurrentPageProducts()
+        {
+            var filteredProducts = _productsView?.Cast<Product>().ToList() ?? new List<Product>();
+
+            if (filteredProducts.Count == 0)
+                return new List<Product>();
+
+            if (_currentPage < 1) _currentPage = 1;
+
+            var startIndex = (_currentPage - 1) * _pageSize;
+
+            if (startIndex >= filteredProducts.Count)
+            {
+                _currentPage = 1;
+                startIndex = 0;
+            }
+
+            var pageProducts = filteredProducts
+                .Skip(startIndex)
+                .Take(_pageSize > 0 ? _pageSize : int.MaxValue)
+                .ToList();
+
+            return pageProducts;
         }
 
         #endregion
@@ -221,7 +261,7 @@ namespace PharmacyWarehouse.Pages
 
                     if (selectedProduct.CurrentStock == 0)
                     {
-                        blockSales = archiveInfo.RequiresWriteOff ? true: false;
+                        blockSales = archiveInfo.RequiresWriteOff ? true : false;
                         ExecuteArchive(selectedProduct, archiveInfo, blockSales);
                     }
                     else if (archiveInfo.RequiresWriteOff)
@@ -230,7 +270,7 @@ namespace PharmacyWarehouse.Pages
 
                         if (writeOffResult.Success)
                         {
-                            blockSales = true; 
+                            blockSales = true;
                             ExecuteArchive(selectedProduct, archiveInfo, blockSales);
 
                             ShowInfo($"Товар '{selectedProduct.Name}' списан и архивирован. " +
@@ -265,7 +305,7 @@ namespace PharmacyWarehouse.Pages
                         }
                         else
                         {
-                            return; 
+                            return;
                         }
                     }
 
@@ -326,7 +366,7 @@ namespace PharmacyWarehouse.Pages
                     WriteOffReason = archiveInfo.WriteOffReason ?? WriteOffReason.Other,
                     Notes = $"Списание при архивации товара. Причина архивации: {archiveInfo.Reason}" +
                            (!string.IsNullOrEmpty(archiveInfo.Comment) ? $"\nКомментарий: {archiveInfo.Comment}" : ""),
-                    CreatedBy = Environment.UserName,
+                    CreatedBy = _currentUser,
                     CreatedAt = DateTime.Now,
                     Status = DocumentStatus.Draft
                 };
@@ -529,6 +569,8 @@ namespace PharmacyWarehouse.Pages
             chkExpiringSoon.IsChecked = false;
             chkExpired.IsChecked = false;
 
+            _currentPage = 1;
+
             ApplyFilters();
             ShowInfo("Фильтры сброшены");
         }
@@ -539,7 +581,7 @@ namespace PharmacyWarehouse.Pages
 
             try
             {
-                var filteredProducts = _productsView?.Cast<Product>().ToList() ?? new List<Product>();
+                var filteredProducts = _allProducts.Where(p => FilterProduct(p)).ToList();
 
                 int total = filteredProducts.Count;
                 int inStock = filteredProducts.Count(p => p.IsInStock);
@@ -569,6 +611,7 @@ namespace PharmacyWarehouse.Pages
 
             var filteredCount = _productsView?.Cast<Product>().Count() ?? 0;
             _totalPages = _pageSize > 0 ? (int)Math.Ceiling(filteredCount / (double)_pageSize) : 1;
+            if (_totalPages == 0) _totalPages = 1;
 
             txtTotalPages.Text = _totalPages.ToString();
             txtCurrentPage.Text = _currentPage.ToString();
@@ -597,14 +640,17 @@ namespace PharmacyWarehouse.Pages
                 int.TryParse(tag, out int newSize))
             {
                 _pageSize = newSize;
-                UpdatePageInfo();
+                _currentPage = 1; 
+                ApplyFilters();
             }
         }
+
 
         private void FirstPage_Click(object sender, RoutedEventArgs e)
         {
             _currentPage = 1;
             UpdatePageInfo();
+            ApplyFilters();
         }
 
         private void PrevPage_Click(object sender, RoutedEventArgs e)
@@ -613,6 +659,7 @@ namespace PharmacyWarehouse.Pages
             {
                 _currentPage--;
                 UpdatePageInfo();
+                ApplyFilters();
             }
         }
 
@@ -622,6 +669,7 @@ namespace PharmacyWarehouse.Pages
             {
                 _currentPage++;
                 UpdatePageInfo();
+                ApplyFilters();
             }
         }
 
@@ -629,6 +677,7 @@ namespace PharmacyWarehouse.Pages
         {
             _currentPage = _totalPages;
             UpdatePageInfo();
+            ApplyFilters();
         }
 
         private void TxtCurrentPage_TextChanged(object sender, TextChangedEventArgs e)
@@ -638,6 +687,8 @@ namespace PharmacyWarehouse.Pages
                 page != _currentPage)
             {
                 _currentPage = page;
+                UpdatePageInfo();
+                ApplyFilters();
             }
         }
 

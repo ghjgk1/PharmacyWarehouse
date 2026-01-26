@@ -123,9 +123,9 @@ public partial class Product : ObservableObject
     [NotMapped]
     public decimal CurrentStock => Batches?.Where(b => b.IsActive).Sum(b => b.Quantity) ?? 0;
 
-   
+
     [NotMapped]
-    public DateOnly? NearestExpirationDate
+    public Batch? NearestBatch
     {
         get
         {
@@ -134,25 +134,27 @@ public partial class Product : ObservableObject
 
             return Batches
                 .Where(b => b.IsActive && b.Quantity > 0)
-                .Min(b => b.ExpirationDate);
+                .OrderBy(b => b.ExpirationDate)
+                .FirstOrDefault();
         }
     }
+
+    [NotMapped]
+    public DateOnly? NearestExpirationDate => NearestBatch?.ExpirationDate;
 
     [NotMapped]
     public bool HasExpiringBatches
     {
         get
         {
-            if (Batches == null) return false;
+            var nearestBatch = NearestBatch;
+            if (nearestBatch == null) return false;
 
-            var thirtyDaysFromNow = DateOnly.FromDateTime(DateTime.Now.AddDays(30));
-            var today = DateOnly.FromDateTime(DateTime.Now);
+            var today = DateOnly.FromDateTime(DateTime.Today);
+            var warningDate = today.AddDays(30); 
 
-            return Batches.Any(b =>
-                b.IsActive &&
-                b.Quantity > 0 &&
-                b.ExpirationDate <= thirtyDaysFromNow &&
-                b.ExpirationDate >= today);
+            return nearestBatch.ExpirationDate >= today &&
+                   nearestBatch.ExpirationDate <= warningDate; 
         }
     }
 
@@ -161,50 +163,14 @@ public partial class Product : ObservableObject
     {
         get
         {
-            if (Batches == null) return false;
+            var nearestBatch = NearestBatch;
+            if (nearestBatch == null) return false;
 
             var today = DateOnly.FromDateTime(DateTime.Now);
-            return Batches.Any(b =>
-                b.IsActive &&
-                b.Quantity > 0 &&
-                b.ExpirationDate < today);
-        }
-    }
 
-    [NotMapped]
-    public decimal TotalValue => Batches?
-        .Where(b => b.IsActive)
-        .Sum(b => b.TotalPurchaseValue) ?? 0;
+            return nearestBatch.ExpirationDate < today;
 
-    [NotMapped]
-    public bool CanBeOrdered => IsActive; 
 
-    [NotMapped]
-    public bool CanBeSold => !IsSalesBlocked; 
-
-    [NotMapped]
-    public string ArchiveStatus
-    {
-        get
-        {
-            if (IsActive) return "Активный";
-            if (IsSalesBlocked) return "Заблокирован";
-            return "Дораспродажа";  
-        }
-    }
-
-    [NotMapped]
-    public Brush StatusBrush
-    {
-        get
-        {
-            if (IsActive)
-            {
-                if (IsOutOfStock) return Brushes.Orange;
-                if (IsLowStock) return Brushes.Gold;
-                return Brushes.Green;
-            }
-            return IsSalesBlocked ? Brushes.Red : Brushes.Gray;
         }
     }
 }

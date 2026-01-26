@@ -19,7 +19,7 @@
                               Style="{StaticResource BodyText}" 
                               Margin="0,4,0,16"/>
 
-                    <StackPanel Style="{StaticResource ToolbarPanel}">
+                        <StackPanel>
                         <!-- Кнопки создания документов -->
                         <StackPanel Orientation="Horizontal">
                             <Button Content="📥 Приход" 
@@ -47,7 +47,7 @@
                         </StackPanel>
 
                         <!-- Кнопки управления -->
-                        <StackPanel Orientation="Horizontal" Margin="24,0,0,0">
+                        <StackPanel Orientation="Horizontal" Margin="3,0,0,0">
                             <Button Content="👁️ Просмотреть" 
                                 Style="{StaticResource SecondaryButton}" 
                                 Width="140"
@@ -65,7 +65,8 @@
                                     ToolTip="Редактировать выбранный документ"
                                     x:Name="btnEdit"/>
 
-                            <Button Content="✏️ Корректировка" 
+                            <Button x:Name="btnCorrection"
+                                    Content="✏️ Корректировка" 
                                     Width="140" 
                                     Height="42"
                                     Style="{StaticResource SecondaryButton}"
@@ -97,13 +98,13 @@
 
                             
 
-                            <Button Content="🚫 Заблокировать" 
+                            <Button x:Name="btnBlock"
+                                    Content="🚫 Заблокировать" 
                                     Width="140"
                                     Height="42" 
                                     Margin="8,0,0,0"
                                     Click="BlockDocument_Click"
-                                    ToolTip="Заблокировать документ"
-                                    x:Name="btnBlock">
+                                    ToolTip="Заблокировать документ">
                                 <Button.Style>
                                     <Style TargetType="Button" BasedOn="{StaticResource WarningButton}">
                                         <Style.Triggers>
@@ -121,15 +122,8 @@
                                 </Button.Style>
                             </Button>
                         </StackPanel>
-
-                        <Separator Margin="24,0"/>
-
-                        <Button Content="🔄 Обновить" 
-                                Style="{StaticResource IconButton}" 
-                                Click="RefreshDocuments_Click"
-                                ToolTip="Обновить список документов"/>
+                        </StackPanel>
                     </StackPanel>
-                </StackPanel>
             </Border>
 
             <!-- ФИЛЬТРЫ И ПОИСК -->
@@ -685,8 +679,8 @@
                                 <ComboBox x:Name="cmbPageSize" 
                                           Width="80"
                                           SelectionChanged="CmbPageSize_SelectionChanged">
-                                    <ComboBoxItem Content="10" Tag="10"/>
-                                    <ComboBoxItem Content="25" Tag="25" IsSelected="True"/>
+                                    <ComboBoxItem Content="10" Tag="10" IsSelected="True"/>
+                                    <ComboBoxItem Content="25" Tag="25"/>
                                     <ComboBoxItem Content="50" Tag="50"/>
                                     <ComboBoxItem Content="100" Tag="100"/>
                                     <ComboBoxItem Content="Все" Tag="0"/>

@@ -18,6 +18,7 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
     private readonly DocumentService _documentService;
     private readonly ProductService _productService;
     private readonly BatchService _batchService;
+    private readonly AuthService _authService;
 
     private Document _currentDocument;
     private ObservableCollection<DocumentLine> _documentItems;
@@ -33,6 +34,8 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
 
     private decimal _documentTotal = 0m;
     private int _totalQuantity = 0;
+    private string _currentUser = String.Empty;
+
 
     public WriteOffPage(int? documentId = null)
     {
@@ -40,6 +43,9 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
         _documentService = App.ServiceProvider.GetService<DocumentService>();
         _productService = App.ServiceProvider.GetService<ProductService>();
         _batchService = App.ServiceProvider.GetService<BatchService>();
+        _authService = App.ServiceProvider.GetService<AuthService>();
+
+        _currentUser = AuthService.CurrentUser?.FullName ?? "Неизвестный пользователь";
 
         LoadData();
 
@@ -88,15 +94,15 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
             Type = DocumentType.WriteOff,
             Date = DateTime.Now,
             Status = DocumentStatus.Draft,
-            CreatedBy = Environment.UserName,
+            CreatedBy = _currentUser,
             CreatedAt = DateTime.Now,
             Number = GenerateDocumentNumber()
         };
 
         txtDocNumber.Text = _currentDocument.Number;
         dpWriteOffDate.SelectedDate = _currentDocument.Date;
-        txtResponsiblePerson.Text = Environment.UserName;
-        txtCommission.Text = $"Состав комиссии: {Environment.UserName}";
+        txtResponsiblePerson.Text = _currentUser;
+        txtCommission.Text = $"Состав комиссии: {_currentUser}";
 
         _documentItems.Clear();
         UpdateDocumentTotals();
@@ -543,7 +549,7 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
                                        (!string.IsNullOrWhiteSpace(txtCommission.Text) ? $"\n{txtCommission.Text}" : "");
                 _currentDocument.Status = DocumentStatus.Processed;
                 _currentDocument.Amount = _documentTotal;
-                _currentDocument.SignedBy = Environment.UserName;
+                _currentDocument.SignedBy = _currentUser;
                 _currentDocument.SignedAt = DateTime.Now;
 
                 var documentLines = new List<DocumentLine>();

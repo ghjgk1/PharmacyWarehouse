@@ -19,7 +19,7 @@
                               Style="{StaticResource BodyText}" 
                               Margin="0,4,0,16"/>
 
-                    <StackPanel Style="{StaticResource ToolbarPanel}">
+                    <StackPanel Style="{StaticResource ToolbarPanel}" x:Name="Admin">
                         <Button Content="➕ Добавить поставщика" 
                                 Style="{StaticResource PrimaryButton}" 
                                 Width="180" 
@@ -87,12 +87,6 @@
                                 ToolTip="Удалить поставщика (доступно только если нет связанных партий и документов)"/>
 
                         <Separator Margin="24,0"/>
-
-
-                        <Button Content="🔄 Обновить" 
-                                Style="{StaticResource IconButton}" 
-                                Click="RefreshSuppliers_Click"
-                                ToolTip="Обновить список поставщиков"/>
                     </StackPanel>
                 </StackPanel>
             </Border>
@@ -509,8 +503,8 @@
                                 <ComboBox x:Name="cmbPageSize" 
                                           Width="80"
                                           SelectionChanged="CmbPageSize_SelectionChanged">
-                                    <ComboBoxItem Content="10" Tag="10"/>
-                                    <ComboBoxItem Content="25" Tag="25" IsSelected="True"/>
+                                    <ComboBoxItem Content="10" Tag="10" IsSelected="True"/>
+                                    <ComboBoxItem Content="25" Tag="25"/>
                                     <ComboBoxItem Content="50" Tag="50"/>
                                     <ComboBoxItem Content="100" Tag="100"/>
                                     <ComboBoxItem Content="Все" Tag="0"/>

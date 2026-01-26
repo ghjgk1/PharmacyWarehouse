@@ -30,6 +30,9 @@ namespace PharmacyWarehouse.Pages
 
             _isPlaceholderText = true;
             SearchTextBox.Foreground = Brushes.Gray;
+
+            var isAdmin = AuthService.IsAdmin();
+            Admin.Visibility = isAdmin ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private void LoadCategories()
@@ -62,17 +65,6 @@ namespace PharmacyWarehouse.Pages
                     Header = CreateCategoryHeader(category),
                     Tag = category
                 };
-
-                // Здесь можно добавить подкатегории, если они есть
-                // foreach (var subCategory in category.SubCategories)
-                // {
-                //     var subNode = new TreeViewItem
-                //     {
-                //         Header = CreateCategoryHeader(subCategory),
-                //         Tag = subCategory
-                //     };
-                //     categoryNode.Items.Add(subNode);
-                // }
 
                 tvCategories.Items.Add(categoryNode);
             }

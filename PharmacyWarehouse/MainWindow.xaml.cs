@@ -21,13 +21,14 @@ namespace PharmacyWarehouse
         private readonly IServiceProvider _serviceProvider;
         private readonly SystemInfoService _systemInfo;
         private readonly DispatcherTimer _statusTimer = new();
-            private readonly AuthService _authService;
+        private readonly AuthService _authService;
 
 
         public MainWindow()
         {
             InitializeComponent();
             _serviceProvider = App.ServiceProvider;
+            _authService = _serviceProvider.GetService<AuthService>();
             LoadUserInfo();
             ApplyRoleRestrictions();
             DataContext = _systemInfo;
@@ -48,14 +49,6 @@ namespace PharmacyWarehouse
         private void ApplyRoleRestrictions()
         {
             var isAdmin = AuthService.IsAdmin();
-
-            // Справочники
-            NavSuppliersBtn.Visibility = isAdmin ? Visibility.Visible : Visibility.Collapsed;
-            NavCategoriesBtn.Visibility = isAdmin ? Visibility.Visible : Visibility.Collapsed;
-
-            // Документы
-            NavWriteOffBtn.Visibility = isAdmin ? Visibility.Visible : Visibility.Collapsed;
-
             // Администрирование
             AdminHeader.Visibility = isAdmin ? Visibility.Visible : Visibility.Collapsed;
             NavManageUsersBtn.Visibility = isAdmin ? Visibility.Visible : Visibility.Collapsed;

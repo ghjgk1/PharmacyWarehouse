@@ -15,19 +15,20 @@
             <Border Style="{StaticResource Card}">
                 <StackPanel>
                     <TextBlock Text="📦 Товары и препараты" Style="{StaticResource H1}"/>
-                    <TextBlock Text="Управление товарами аптеки"
+                    <StackPanel x:Name="Admin">
+                        <TextBlock Text="Управление товарами аптеки"
                               Style="{StaticResource BodyText}" 
                               Margin="0,4,0,16"/>
 
-                    <StackPanel Style="{StaticResource ToolbarPanel}">
-                        <Button Content="➕ Добавить товар" 
+                        <StackPanel Style="{StaticResource ToolbarPanel}">
+                            <Button Content="➕ Добавить товар" 
                                 Style="{StaticResource PrimaryButton}" 
                                 Width="140" 
                                 Height="42"
                                 Click="AddProduct_Click"
                                 ToolTip="Добавить новый товар в справочник"/>
 
-                        <Button Content="✏️ Редактировать" 
+                            <Button Content="✏️ Редактировать" 
                                 Style="{StaticResource SecondaryButton}" 
                                 Width="140"
                                 Height="42" 
@@ -35,49 +36,49 @@
                                 Click="EditProduct_Click"
                                 ToolTip="Редактировать выбранный товар"/>
 
-                        <Button x:Name="btnArchive" 
+                            <Button x:Name="btnArchive" 
                                 Content="📦 В архив" 
                                 Width="100" 
                                 Height="42"
                                 Margin="8,0,0,0" 
                                 Click="ArchiveProduct_Click"
                                 ToolTip="Перевести товар в архив (неактивное состояние)">
-                            <Button.Style>
-                                <Style TargetType="Button" BasedOn="{StaticResource WarningButton}">
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding IsActive}" Value="False">
-                                            <Setter Value="Collapsed" Property="Visibility"/>
-                                        </DataTrigger>
-                                        <DataTrigger Binding="{Binding IsActive}" Value="True">
-                                            <Setter Value="Visible" Property="Visibility"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Button.Style>
-                        </Button>
+                                <Button.Style>
+                                    <Style TargetType="Button" BasedOn="{StaticResource WarningButton}">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsActive}" Value="False">
+                                                <Setter Value="Collapsed" Property="Visibility"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                                <Setter Value="Visible" Property="Visibility"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
 
-                        <Button x:Name="btnActivate" 
+                            <Button x:Name="btnActivate" 
                                 Content="✅ Активировать" 
                                 Visibility="Collapsed"
                                 Width="140" 
                                 Margin="8,0,0,0" 
                                 Click="ActivateProduct_Click"
                                 ToolTip="Вернуть товар из архива">
-                            <Button.Style>
-                                <Style TargetType="Button" BasedOn="{StaticResource SuccessButton}">
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding IsActive}" Value="True">
-                                            <Setter Value="Collapsed" Property="Visibility"/>
-                                        </DataTrigger>
-                                        <DataTrigger Binding="{Binding IsActive}" Value="False">
-                                            <Setter Value="Visible" Property="Visibility"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Button.Style>
-                        </Button>
+                                <Button.Style>
+                                    <Style TargetType="Button" BasedOn="{StaticResource SuccessButton}">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                                <Setter Value="Collapsed" Property="Visibility"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding IsActive}" Value="False">
+                                                <Setter Value="Visible" Property="Visibility"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
 
-                        <Button x:Name="btnDelete" 
+                            <Button x:Name="btnDelete" 
                                 Content="🗑️ Удалить" 
                                 Style="{StaticResource DangerButton}" 
                                 Width="100" 
@@ -87,12 +88,8 @@
                                 ToolTip="Удалить товар (доступно только если нет связанных партий)"/>
 
 
-                        <Separator Margin="24,0"/>
-
-                        <Button Content="🔄 Обновить" 
-                                Style="{StaticResource IconButton}" 
-                                Click="RefreshProducts_Click"
-                                ToolTip="Обновить список товаров"/>
+                            <Separator Margin="24,0"/>
+                        </StackPanel>
                     </StackPanel>
                 </StackPanel>
             </Border>
@@ -576,8 +573,8 @@
                                 <ComboBox x:Name="cmbPageSize" 
                                           Width="80"
                                           SelectionChanged="CmbPageSize_SelectionChanged">
-                                    <ComboBoxItem Content="10" Tag="10"/>
-                                    <ComboBoxItem Content="25" Tag="25" IsSelected="True"/>
+                                    <ComboBoxItem Content="10" Tag="10" IsSelected="True"/>
+                                    <ComboBoxItem Content="25" Tag="25"/>
                                     <ComboBoxItem Content="50" Tag="50"/>
                                     <ComboBoxItem Content="100" Tag="100"/>
                                     <ComboBoxItem Content="Все" Tag="0"/>

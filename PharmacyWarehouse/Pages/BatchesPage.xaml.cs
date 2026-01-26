@@ -18,6 +18,13 @@ public partial class BatchesPage : Page
     private SupplierService _supplierService;
     private List<Batch> _allBatches = new List<Batch>();
 
+    private List<Batch> _filteredBatches = new List<Batch>();
+    private List<Batch> _currentPageBatches = new List<Batch>();
+    private int _currentPage = 1;
+    private int _pageSize = 10;
+    private int _totalPages = 1;
+    private bool _isPageLoaded = false;
+
     public BatchesPage()
     {
         InitializeComponent();
@@ -34,7 +41,11 @@ public partial class BatchesPage : Page
 
     private void BatchesPage_Loaded(object sender, RoutedEventArgs e)
     {
+        _isPageLoaded = false;
         LoadData();
+        _isPageLoaded = true;
+        ApplyFilters();
+
     }
 
     private void LoadData()
@@ -71,14 +82,90 @@ public partial class BatchesPage : Page
     {
         try
         {
+            // Применяем пагинацию к отфильтрованным данным
+            var startIndex = (_currentPage - 1) * _pageSize;
+            _currentPageBatches = _filteredBatches
+                .Skip(startIndex)
+                .Take(_pageSize > 0 ? _pageSize : _filteredBatches.Count)
+                .ToList();
+
             dgBatches.ItemsSource = null;
-            dgBatches.ItemsSource = Service.Batches;
+            dgBatches.ItemsSource = _currentPageBatches;
             dgBatches.UpdateLayout();
+
+            // Обновляем информацию о страницах
+            UpdatePageInfo();
         }
         catch (Exception ex)
         {
             MessageBox.Show($"Ошибка при обновлении таблицы: {ex.Message}",
                 "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void UpdatePageInfo()
+    {
+        if (!_isPageLoaded) return;
+
+        try
+        {
+            _totalPages = _pageSize > 0 ?
+                (int)Math.Ceiling(_filteredBatches.Count / (double)_pageSize) : 1;
+            if (_totalPages == 0) _totalPages = 1;
+
+            if (_currentPage > _totalPages)
+            {
+                _currentPage = _totalPages;
+            }
+
+            txtTotalPages.Text = _totalPages.ToString();
+            txtCurrentPage.Text = _currentPage.ToString();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ошибка в UpdatePageInfo: {ex.Message}");
+        }
+    }
+
+    private void UpdateFilterStatistics(List<Batch> batches)
+    {
+        try
+        {
+            int total = batches.Count;
+            int active = batches.Count(b => b.IsActive && b.Quantity > 0);
+            int expired = batches.Count(b => b.IsExpired && b.IsActive && b.Quantity > 0);
+            int expiring = batches.Count(b => b.IsExpiringSoon && b.IsActive && b.Quantity > 0);
+
+            txtTotalBatches.Text = $"Всего партий: {total}";
+            txtActiveBatches.Text = $"Активных: {active}";
+            txtExpiredBatches.Text = $"Просроченных: {expired}";
+            txtExpiringBatches.Text = $"Истекающих: {expiring}";
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ошибка в UpdateFilterStatistics: {ex.Message}");
+        }
+    }
+
+    private void UpdateTotals()
+    {
+        try
+        {
+            var batches = _filteredBatches;
+            int totalCount = batches.Count;
+            int totalQuantity = batches.Sum(b => b.Quantity);
+            decimal totalValue = batches.Sum(b => b.TotalPurchaseValue);
+
+            txtTotalCount.Text = totalCount.ToString();
+            txtTotalQuantity.Text = totalQuantity.ToString("N0");
+            txtTotalValue.Text = totalValue.ToString("N2");
+
+            // Обновляем статистику фильтров
+            UpdateFilterStatistics(batches);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ошибка в UpdateTotals: {ex.Message}");
         }
     }
 
@@ -189,28 +276,6 @@ public partial class BatchesPage : Page
         txtBatchQuantity.Text = "Остаток: -";
         txtBatchPrice.Text = "Цена закупки: -";
 
-    }
-
-    // Обновление статистики фильтров
-    private void UpdateFilterStatistics(List<Batch> filteredBatches)
-    {
-        try
-        {
-            int total = filteredBatches.Count;
-            int active = filteredBatches.Count(b => b.IsActive && b.Quantity > 0);
-            int expired = filteredBatches.Count(b => b.IsExpired && b.IsActive && b.Quantity > 0);
-            int expiring = filteredBatches.Count(b => b.IsExpiringSoon && b.IsActive && b.Quantity > 0);
-
-            txtTotalBatches.Text = $"Всего партий: {total}";
-            txtActiveBatches.Text = $"Активных: {active}";
-            txtExpiredBatches.Text = $"Просроченных: {expired}";
-            txtExpiringBatches.Text = $"Истекающих: {expiring}";
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Ошибка при обновлении статистики: {ex.Message}",
-                "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
     }
 
     // Обновленный метод обновления деталей партии
@@ -389,17 +454,10 @@ public partial class BatchesPage : Page
                 };
             }
 
-            // Преобразуем в список
-            var filteredList = filteredBatches.ToList();
+            _filteredBatches = filteredBatches.ToList();
 
-            // Обновляем коллекцию
-            Service.Batches.Clear();
-            foreach (var batch in filteredList)
-            {
-                Service.Batches.Add(batch);
-            }
+            _currentPage = 1;
 
-            // Обновляем DataGrid
             UpdateDataGrid();
             UpdateTotals();
         }
@@ -472,42 +530,67 @@ public partial class BatchesPage : Page
         }
     }
 
+    #endregion
 
-    private void UpdateTotals()
+    #region Pagination Methods
+
+    private void CmbPageSize_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        try
-        {
-            var batches = Service.Batches;
-            int totalCount = batches.Count;
-            int totalQuantity = batches.Sum(b => b.Quantity);
-            decimal totalValue = batches.Sum(b => b.TotalPurchaseValue);
+        if (!_isPageLoaded) return;
 
-            txtTotalCount.Text = totalCount.ToString();
-            txtTotalQuantity.Text = totalQuantity.ToString("N0");
-            txtTotalValue.Text = totalValue.ToString("N2");
-        }
-        catch (Exception ex)
+        if (cmbPageSize.SelectedItem is ComboBoxItem selectedItem &&
+            selectedItem.Tag is string tag &&
+            int.TryParse(tag, out int newSize))
         {
-            MessageBox.Show($"Ошибка при обновлении итогов: {ex.Message}",
-                "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            _pageSize = newSize;
+            _currentPage = 1;
+            UpdateDataGrid();
+        }
+    }
+
+    private void FirstPage_Click(object sender, RoutedEventArgs e)
+    {
+        _currentPage = 1;
+        UpdateDataGrid();
+    }
+
+    private void PrevPage_Click(object sender, RoutedEventArgs e)
+    {
+        if (_currentPage > 1)
+        {
+            _currentPage--;
+            UpdateDataGrid();
+        }
+    }
+
+    private void NextPage_Click(object sender, RoutedEventArgs e)
+    {
+        if (_currentPage < _totalPages)
+        {
+            _currentPage++;
+            UpdateDataGrid();
+        }
+    }
+
+    private void LastPage_Click(object sender, RoutedEventArgs e)
+    {
+        _currentPage = _totalPages;
+        UpdateDataGrid();
+    }
+
+    private void TxtCurrentPage_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (!_isPageLoaded) return;
+
+        if (int.TryParse(txtCurrentPage.Text, out int page) &&
+            page >= 1 && page <= _totalPages &&
+            page != _currentPage)
+        {
+            _currentPage = page;
+            UpdateDataGrid();
         }
     }
 
     #endregion
 
-    #region Button Events (для существующих кнопок в XAML)
-
-    private void Export_Click(object sender, RoutedEventArgs e)
-    {
-        MessageBox.Show("Экспорт данных будет реализован позже",
-            "В разработке", MessageBoxButton.OK, MessageBoxImage.Information);
-    }
-
-    private void BatchReport_Click(object sender, RoutedEventArgs e)
-    {
-        MessageBox.Show("Отчет по партиям будет реализован позже",
-            "В разработке", MessageBoxButton.OK, MessageBoxImage.Information);
-    }
-
-    #endregion
 }
