@@ -19,9 +19,14 @@
 ### 1. Установка
 ```bash
 git clone https://github.com/ghjgk1/PharmacyWarehouse.git
+```
+### 2. Востановление пакетов
+```bash
+# Восстановить пакеты NuGet
+dotnet restore
 ```   
-### 2. Настройка подключения к БД
-В appsetting.json поменять строку на свою:
+### 3. Настройка подключения к БД
+В appsettings.json поменять строку на свою:
 
 ```json
 {
@@ -30,7 +35,7 @@ git clone https://github.com/ghjgk1/PharmacyWarehouse.git
   }
 }
 ```
-### 3. Настройка базы данных
+### 4. Настройка базы данных
 Перейдите: Инструменты → Диспетчер пакетов NuGet → Консоль диспетчера пакетов
 
 Выполните команду:
@@ -43,7 +48,7 @@ Add-Migration InitialCreate
 Update-Database
 ```
 
-### 4. Запуск
+### 5. Запуск
 В Visual Studio установите проект PharmacyWarehouse как запускаемый
 
 Нажмите F5 или Запуск
