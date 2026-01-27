@@ -51,6 +51,7 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
         _authService = App.ServiceProvider.GetService<AuthService>();
 
         _currentUser = AuthService.CurrentUser?.FullName ?? "Неизвестный пользователь";
+        dpExpirationDate.DisplayDateStart = DateTime.Now;
 
         LoadData();
 
