@@ -29,7 +29,7 @@ public partial class OutgoingPage : Page, INotifyPropertyChanged
     private ICollectionView _filteredProductsView;
     private string _productSearchText = string.Empty;
     private ObservableCollection<Product> _allProductsObservable = new();
-    private List<Product> _productsWithStock;
+    private List<Product> _productsWithStock = new();
 
     public event PropertyChangedEventHandler PropertyChanged;
 
