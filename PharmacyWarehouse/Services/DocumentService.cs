@@ -103,9 +103,9 @@ public class DocumentService
                             DocumentId = document.Id,
                             ProductId = line.ProductId,
                             Quantity = toTake,
-                            UnitPrice = batch.SellingPrice, // Берем цену из партии
-                            SellingPrice = batch.SellingPrice, // Берем цену из партии
-                            Series = batch.Series, // ОБЯЗАТЕЛЬНО берем серию из партии!
+                            UnitPrice = batch.SellingPrice, 
+                            SellingPrice = batch.SellingPrice, 
+                            Series = batch.Series, 
                             ExpirationDate = batch.ExpirationDate,
                             SourceBatchId = batch.Id,
                             Notes = line.Notes
@@ -207,14 +207,15 @@ public class DocumentService
 
         try
         {
-            var amount = document.Amount;
+            // Инициализируем сумму документа
+            decimal totalAmount = 0;
 
             // Проверяем, новый ли это документ или редактирование существующего
             if (document.Id == 0) // Новый документ
             {
                 // Генерируем номер для списания
                 document.Number = GenerateDocumentNumber(DocumentType.WriteOff);
-                document.Type = DocumentType.WriteOff; // ВАЖНО: устанавливаем тип WriteOff
+                document.Type = DocumentType.WriteOff;
                 document.CreatedAt = DateTime.Now;
 
                 if (document.Date == default(DateTime))
@@ -238,10 +239,10 @@ public class DocumentService
                 existingDocument.CustomerDocument = document.CustomerDocument;
                 existingDocument.Notes = document.Notes;
                 existingDocument.Status = document.Status;
-                existingDocument.Amount = document.Amount;
                 existingDocument.SignedBy = document.SignedBy;
                 existingDocument.SignedAt = document.SignedAt;
-                existingDocument.Type = DocumentType.WriteOff; // ВАЖНО: устанавливаем тип WriteOff
+                existingDocument.Type = DocumentType.WriteOff;
+                existingDocument.WriteOffReason = document.WriteOffReason;
 
                 // Удаляем старые строки документа
                 _db.DocumentLines.RemoveRange(existingDocument.DocumentLines);
@@ -273,6 +274,11 @@ public class DocumentService
                         if (remaining <= 0) break;
 
                         int toTake = Math.Min(batch.Quantity, remaining);
+
+                        // Рассчитываем сумму для этой строки
+                        decimal lineAmount = batch.SellingPrice * toTake;
+                        totalAmount += lineAmount;
+
                         var batchLine = new DocumentLine
                         {
                             DocumentId = document.Id,
@@ -304,23 +310,50 @@ public class DocumentService
             {
                 foreach (var line in lines)
                 {
+                    // Ищем исходные данные из партий для заполнения обязательных полей
+                    var batch = _db.Batches
+                        .Where(b => b.ProductId == line.ProductId &&
+                                   b.IsActive &&
+                                   b.Quantity > 0 &&
+                                   b.Id == line.SourceBatchId)
+                        .FirstOrDefault();
+
+                    // Если не нашли по SourceBatchId, ищем первую доступную партию
+                    if (batch == null && line.SourceBatchId == null)
+                    {
+                        batch = _db.Batches
+                            .Where(b => b.ProductId == line.ProductId &&
+                                       b.IsActive &&
+                                       b.Quantity > 0)
+                            .OrderBy(b => b.ExpirationDate)
+                            .FirstOrDefault();
+                    }
+
+                    // Рассчитываем сумму для строки
+                    decimal sellingPrice = line.SellingPrice ?? batch?.SellingPrice ?? 0m;
+                    decimal lineAmount = sellingPrice * line.Quantity;
+                    totalAmount += lineAmount;
+
                     var documentLine = new DocumentLine
                     {
                         DocumentId = document.Id,
                         ProductId = line.ProductId,
                         Quantity = line.Quantity,
-                        UnitPrice = line.UnitPrice,
-                        SellingPrice = line.SellingPrice ?? 0m,
+                        UnitPrice = line.UnitPrice > 0 ? line.UnitPrice : (batch?.SellingPrice ?? 0m),
+                        SellingPrice = sellingPrice,
+                        Series = line.Series ?? batch?.Series ?? "БЕЗ СЕРИИ",
+                        ExpirationDate = line.ExpirationDate ?? batch?.ExpirationDate ?? DateOnly.FromDateTime(DateTime.Now),
                         Notes = line.Notes,
                         CreatedBatchId = null,
-                        SourceBatchId = null
+                        SourceBatchId = line.SourceBatchId ?? batch?.Id
                     };
 
                     _db.DocumentLines.Add(documentLine);
                 }
             }
 
-            document.Amount = amount;
+            // Устанавливаем сумму документа
+            document.Amount = totalAmount;
 
             _db.SaveChanges();
             transaction.Commit();
@@ -332,11 +365,11 @@ public class DocumentService
         catch (Exception ex)
         {
             transaction.Rollback();
-            throw new InvalidOperationException($"Ошибка при создании акта списания: {ex.Message}");
+            throw new InvalidOperationException($"Ошибка при создании акта списания: {ex.Message}", ex);
         }
     }
     public int CreateQuantityCorrection(int originalDocumentId, string reason,
-                                            List<QuantityCorrection> corrections)
+                                        List<QuantityCorrection> corrections)
     {
         using var transaction = _db.Database.BeginTransaction();
 
@@ -349,7 +382,6 @@ public class DocumentService
 
             if (originalDoc == null)
                 throw new Exception("Оригинальный документ не найден");
-
 
             var correctionDoc = new Document
             {
@@ -367,6 +399,8 @@ public class DocumentService
             _db.Documents.Add(correctionDoc);
             _db.SaveChanges();
 
+            decimal totalAmount = 0;
+
             foreach (var correction in corrections)
             {
                 var line = originalDoc.DocumentLines
@@ -377,13 +411,13 @@ public class DocumentService
 
                 var batch = line.CreatedBatch;
                 var oldQuantity = batch.Quantity;
+                var newQuantity = correction.NewQuantity;
 
-                if (correction.NewQuantity < 0)
-                    throw new Exception($"Количество не может быть отрицательным: {correction.NewQuantity}");
+                if (newQuantity < 0)
+                    throw new Exception($"Количество не может быть отрицательным: {newQuantity}");
 
-                int difference = correction.NewQuantity - oldQuantity;
-
-                batch.Quantity = correction.NewQuantity;
+                // Обновляем количество в партии
+                batch.Quantity = newQuantity;
 
                 if (batch.Quantity == 0)
                     batch.IsActive = false;
@@ -392,20 +426,19 @@ public class DocumentService
                 {
                     DocumentId = correctionDoc.Id,
                     ProductId = line.ProductId,
-                    Quantity = Math.Abs(difference),
+                    Quantity = Math.Abs(newQuantity - oldQuantity),
                     UnitPrice = line.UnitPrice,
                     Series = batch.Series,
                     ExpirationDate = batch.ExpirationDate,
                     OldValue = oldQuantity.ToString(),
-                    NewValue = correction.NewQuantity.ToString(),
-                    CorrectionNotes = $"Корректировка количества: {oldQuantity} → {correction.NewQuantity}",
+                    NewValue = newQuantity.ToString(),
+                    CorrectionNotes = $"Корректировка количества: {oldQuantity} → {newQuantity}",
                     CreatedBatchId = batch.Id
                 };
 
-                if (difference < 0)
-                {
-                    correctionLine.SourceBatchId = batch.Id;
-                }
+                decimal oldTotal = oldQuantity * line.UnitPrice;
+                decimal newTotal = newQuantity * line.UnitPrice;
+                totalAmount += newTotal - oldTotal; 
 
                 _db.DocumentLines.Add(correctionLine);
 
@@ -416,7 +449,7 @@ public class DocumentService
                     CorrectionDate = DateTime.Now,
                     FieldName = "Quantity",
                     OldValue = oldQuantity.ToString(),
-                    NewValue = correction.NewQuantity.ToString(),
+                    NewValue = newQuantity.ToString(),
                     ChangedBy = _currentUser,
                     Reason = reason
                 };
@@ -427,6 +460,7 @@ public class DocumentService
             correctionDoc.Status = DocumentStatus.Processed;
             correctionDoc.SignedAt = DateTime.Now;
             correctionDoc.SignedBy = _currentUser;
+            correctionDoc.Amount = totalAmount;
 
             _db.SaveChanges();
             transaction.Commit();
@@ -440,28 +474,29 @@ public class DocumentService
             throw new InvalidOperationException($"Ошибка при создании корректировки: {ex.Message}");
         }
     }
-
     public Document? GetDocumentWithCorrections(int documentId)
     {
-        return _db.Documents
+        var document = _db.Documents
+            .AsNoTracking() // Важно: отключаем отслеживание
             .Include(d => d.Supplier)
             .Include(d => d.DocumentLines)
                 .ThenInclude(l => l.Product)
             .Include(d => d.DocumentLines)
                 .ThenInclude(l => l.CreatedBatch)
-            .Include(d => d.Corrections)          
-                .ThenInclude(c => c.DocumentLines)
-            .Include(d => d.OriginalDocument)     
+            .Include(d => d.DocumentLines)
+                .ThenInclude(l => l.SourceBatch)
             .FirstOrDefault(d => d.Id == documentId);
-    }
 
-    public List<BatchCorrectionLog> GetBatchCorrectionHistory(int batchId)
-    {
-        return _db.BatchCorrectionLogs
-            .Where(log => log.BatchId == batchId)
-            .Include(log => log.CorrectionDocument)
-            .OrderByDescending(log => log.CorrectionDate)
-            .ToList();
+        if (document == null)
+            return null;
+
+        // Явно загружаем корректировки отдельным запросом
+        _db.Entry(document).Collection(d => d.Corrections).Query()
+            .Include(c => c.DocumentLines)
+                .ThenInclude(l => l.Product)
+            .Load();
+
+        return document;
     }
 
     public List<Document> GetDocumentCorrections(int documentId)
@@ -619,6 +654,112 @@ public class DocumentService
         }
     }
 
+    public int CreatePriceCorrection(int originalDocumentId, string reason,
+                                 List<PriceCorrection> corrections)
+    {
+        using var transaction = _db.Database.BeginTransaction();
+
+        try
+        {
+            var originalDoc = _db.Documents
+                .Include(d => d.DocumentLines)
+                    .ThenInclude(l => l.CreatedBatch)
+                .FirstOrDefault(d => d.Id == originalDocumentId);
+
+            if (originalDoc == null)
+                throw new Exception("Оригинальный документ не найден");
+
+            var correctionDoc = new Document
+            {
+                Type = DocumentType.Correction,
+                Number = GenerateDocumentNumber(DocumentType.Correction),
+                Date = DateTime.Now,
+                OriginalDocumentId = originalDocumentId,
+                CorrectionType = Models.CorrectionType.Price, // <-- Важно!
+                CorrectionReason = reason,
+                CreatedAt = DateTime.Now,
+                CreatedBy = _currentUser,
+                Status = DocumentStatus.Draft
+            };
+
+            _db.Documents.Add(correctionDoc);
+            _db.SaveChanges();
+
+            decimal totalAmount = 0;
+
+            foreach (var correction in corrections)
+            {
+                var line = originalDoc.DocumentLines
+                    .FirstOrDefault(l => l.Id == correction.DocumentLineId);
+
+                if (line == null || line.CreatedBatch == null)
+                    continue;
+
+                var batch = line.CreatedBatch;
+                var oldPrice = batch.SellingPrice;
+                var newPrice = correction.NewPrice;
+
+                if (newPrice < 0)
+                    throw new Exception($"Цена не может быть отрицательной: {newPrice}");
+
+                // Обновляем цену в партии
+                batch.SellingPrice = newPrice;
+
+                var correctionLine = new DocumentLine
+                {
+                    DocumentId = correctionDoc.Id,
+                    ProductId = line.ProductId,
+                    Quantity = line.Quantity, // Используем оригинальное количество
+                    UnitPrice = line.UnitPrice,
+                    SellingPrice = newPrice,
+                    Series = batch.Series,
+                    ExpirationDate = batch.ExpirationDate,
+                    OldValue = oldPrice.ToString("N2"),
+                    NewValue = newPrice.ToString("N2"),
+                    CorrectionNotes = $"Корректировка цены: {oldPrice:N2} → {newPrice:N2}",
+                    CreatedBatchId = batch.Id
+                };
+
+                // Считаем разницу в сумме
+                decimal oldTotal = line.Quantity * oldPrice;
+                decimal newTotal = line.Quantity * newPrice;
+                totalAmount += newTotal - oldTotal;
+
+                _db.DocumentLines.Add(correctionLine);
+
+                var log = new BatchCorrectionLog
+                {
+                    BatchId = batch.Id,
+                    CorrectionDocumentId = correctionDoc.Id,
+                    CorrectionDate = DateTime.Now,
+                    FieldName = "Price",
+                    OldValue = oldPrice.ToString("N2"),
+                    NewValue = newPrice.ToString("N2"),
+                    ChangedBy = _currentUser,
+                    Reason = reason
+                };
+
+                _db.BatchCorrectionLogs.Add(log);
+            }
+
+            correctionDoc.Status = DocumentStatus.Processed;
+            correctionDoc.SignedAt = DateTime.Now;
+            correctionDoc.SignedBy = _currentUser;
+            correctionDoc.Amount = totalAmount;
+
+            _db.SaveChanges();
+            transaction.Commit();
+
+            GetAll();
+            return correctionDoc.Id;
+        }
+        catch (Exception ex)
+        {
+            transaction.Rollback();
+            throw new InvalidOperationException($"Ошибка при создании корректировки цены: {ex.Message}");
+        }
+    }
+
     public bool UpdateDocument(Document document, List<DocumentLine> documentLines)
     {
         using var transaction = _db.Database.BeginTransaction();
@@ -731,7 +872,12 @@ public class DocumentService
 
 public class QuantityCorrection
 {
-    public int DocumentLineId { get; set; }  // ID строки оригинального документа
-    public int NewQuantity { get; set; }     // Новое корректное количество
+    public int DocumentLineId { get; set; }
+    public int NewQuantity { get; set; }
+}
+public class PriceCorrection
+{
+    public int DocumentLineId { get; set; }  
+    public decimal NewPrice { get; set; }    
 }
 

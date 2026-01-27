@@ -38,9 +38,6 @@ public enum CorrectionType
 {
     Quantity,        // Корректировка количества
     Price,           // Корректировка цены
-    ExpirationDate,  // Корректировка срока годности
-    Series,          // Корректировка серии
-    Product          // Корректировка товара
 }
 
 public partial class Document : ObservableObject
@@ -141,6 +138,13 @@ public partial class Document : ObservableObject
         set => SetProperty(ref _signedAt, value);
     }
 
+    public decimal? Amount
+    {
+        get => _amount;
+        set => SetProperty(ref _amount, value);
+    }
+
+
     // Приходная 
     public int? SupplierId
     {
@@ -171,11 +175,6 @@ public partial class Document : ObservableObject
     {
         get => _customerDocument;
         set => SetProperty(ref _customerDocument, value);
-    }
-    public decimal? Amount
-    {
-        get => _amount;
-        set => SetProperty(ref _amount, value);
     }
 
     // Списание
@@ -217,7 +216,7 @@ public partial class Document : ObservableObject
     }
 
     [NotMapped]
-    public decimal TotalAmount => DocumentLines?.Sum(l => l.TotalPrice) ?? 0;
+    public decimal TotalAmount => Amount ?? 0;
 
     [NotMapped]
     public string TypeDescription => Type switch

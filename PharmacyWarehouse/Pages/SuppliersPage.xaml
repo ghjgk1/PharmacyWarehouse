@@ -726,21 +726,6 @@
                                 </DataGridTemplateColumn>
                             </DataGrid.Columns>
                         </DataGrid>
-
-                        <!-- Быстрые действия -->
-                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-                            <Button Content="📥 Новая поставка" 
-                                    Style="{StaticResource OutlineButton}"
-                                    Click="QuickCreateDelivery_Click"/>
-                            <Button Content="📋 Новый заказ" 
-                                    Style="{StaticResource OutlineButton}"
-                                    Margin="8,0,0,0"
-                                    Click="QuickCreateOrder_Click"/>
-                            <Button Content="📞 Позвонить" 
-                                    Style="{StaticResource OutlineButton}"
-                                    Margin="8,0,0,0"
-                                    Click="QuickCallSupplier_Click"/>
-                        </StackPanel>
                     </StackPanel>
                 </Grid>
             </Border>

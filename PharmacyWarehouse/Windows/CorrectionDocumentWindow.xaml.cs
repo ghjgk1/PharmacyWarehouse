@@ -156,7 +156,6 @@ namespace PharmacyWarehouse.Windows
                 {
                     "Quantity" => CorrectionType.Quantity,
                     "Price" => CorrectionType.Price,
-                    "ExpirationDate" => CorrectionType.ExpirationDate,
                     _ => CorrectionType.Quantity
                 };
 
@@ -233,7 +232,6 @@ namespace PharmacyWarehouse.Windows
 
             return true;
         }
-
         private void SaveDocument()
         {
             if (!ValidateDocument())
@@ -241,34 +239,60 @@ namespace PharmacyWarehouse.Windows
 
             try
             {
-                var quantityCorrections = _products
-                    .Where(p => p.HasChanges)
-                    .Select(p => new QuantityCorrection
-                    {
-                        DocumentLineId = p.DocumentLineId,
-                        NewQuantity = p.NewQuantity
-                    })
-                    .ToList();
+                var correctionType = GetSelectedCorrectionType();
 
-                if (quantityCorrections.Any())
+                if (correctionType == CorrectionType.Quantity)
                 {
-                    _documentService.CreateQuantityCorrection(
-                        _baseDocument.Id,
-                        txtDocumentReason.Text,
-                        quantityCorrections
-                    );
+                    var quantityCorrections = _products
+                        .Where(p => p.HasChanges)
+                        .Select(p => new QuantityCorrection
+                        {
+                            DocumentLineId = p.DocumentLineId,
+                            NewQuantity = p.NewQuantity
+                        })
+                        .ToList();
 
-                    MessageBox.Show($"Корректировка проведена успешно!\nНомер: {txtDocNumber.Text}",
-                        "Успешно", MessageBoxButton.OK, MessageBoxImage.Information);
+                    if (quantityCorrections.Any())
+                    {
+                        _documentService.CreateQuantityCorrection(
+                            _baseDocument.Id,
+                            txtDocumentReason.Text,
+                            quantityCorrections
+                        );
+                    }
+                }
+                else if (correctionType == CorrectionType.Price)
+                {
+                    var priceCorrections = _products
+                        .Where(p => p.HasChanges)
+                        .Select(p => new PriceCorrection
+                        {
+                            DocumentLineId = p.DocumentLineId,
+                            NewPrice = p.NewPrice
+                        })
+                        .ToList();
 
-                    DialogResult = true;
-                    Close();
+                    if (priceCorrections.Any())
+                    {
+                        _documentService.CreatePriceCorrection(
+                            _baseDocument.Id,
+                            txtDocumentReason.Text,
+                            priceCorrections
+                        );
+                    }
                 }
                 else
                 {
-                    MessageBox.Show("Нет изменений для сохранения",
-                        "Внимание", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBox.Show("Выберите тип корректировки",
+                        "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
                 }
+
+                MessageBox.Show($"Корректировка проведена успешно!\nНомер: {txtDocNumber.Text}",
+                    "Успешно", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                DialogResult = true;
+                Close();
             }
             catch (Exception ex)
             {
@@ -276,9 +300,25 @@ namespace PharmacyWarehouse.Windows
                     "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
+
+        private CorrectionType GetSelectedCorrectionType()
+        {
+            if (cmbCorrectionType.SelectedItem is ComboBoxItem selectedItem && selectedItem.Tag != null)
+            {
+                string tag = selectedItem.Tag.ToString();
+                return tag switch
+                {
+                    "Quantity" => CorrectionType.Quantity,
+                    "Price" => CorrectionType.Price,
+                    _ => CorrectionType.Quantity
+                };
+            }
+            return CorrectionType.Quantity; // По умолчанию
+        }
     }
 
-    public class CorrectionProductViewModel : INotifyPropertyChanged
+
+        public class CorrectionProductViewModel : INotifyPropertyChanged
     {
         private CorrectionType _currentCorrectionType = CorrectionType.Quantity;
 
@@ -373,7 +413,6 @@ namespace PharmacyWarehouse.Windows
         // Флаги видимости для XAML
         public bool IsQuantityCorrection => _currentCorrectionType == CorrectionType.Quantity;
         public bool IsPriceCorrection => _currentCorrectionType == CorrectionType.Price;
-        public bool IsExpirationDateCorrection => _currentCorrectionType == CorrectionType.ExpirationDate;
         public bool ShowCorrectionAmount => IsQuantityCorrection || IsPriceCorrection;
 
         // Отображаемое текущее значение
@@ -381,7 +420,6 @@ namespace PharmacyWarehouse.Windows
         {
             CorrectionType.Quantity => $"{CurrentQuantity:N0} {Unit}",
             CorrectionType.Price => $"{CurrentPrice:N2} руб.",
-            CorrectionType.ExpirationDate => CurrentExpirationDate.ToString("dd.MM.yyyy"),
             _ => ""
         };
 
@@ -390,7 +428,6 @@ namespace PharmacyWarehouse.Windows
         {
             CorrectionType.Quantity => NewQuantity != CurrentQuantity,
             CorrectionType.Price => NewPrice != CurrentPrice,
-            CorrectionType.ExpirationDate => NewExpirationDate != CurrentExpirationDate,
             _ => false
         };
 
@@ -405,7 +442,6 @@ namespace PharmacyWarehouse.Windows
 
             OnPropertyChanged(nameof(IsQuantityCorrection));
             OnPropertyChanged(nameof(IsPriceCorrection));
-            OnPropertyChanged(nameof(IsExpirationDateCorrection));
             OnPropertyChanged(nameof(ShowCorrectionAmount));
             OnPropertyChanged(nameof(CurrentValueDisplay));
             OnPropertyChanged(nameof(HasChanges));
@@ -426,10 +462,6 @@ namespace PharmacyWarehouse.Windows
                     decimal priceDiff = NewPrice - CurrentPrice;
                     CorrectionAmount = priceDiff * CurrentQuantity;
                     break;
-
-                case CorrectionType.ExpirationDate:
-                    CorrectionAmount = 0;
-                    break;
             }
         }
 
@@ -443,10 +475,6 @@ namespace PharmacyWarehouse.Windows
 
                 case CorrectionType.Price:
                     NewPrice = CurrentPrice;
-                    break;
-
-                case CorrectionType.ExpirationDate:
-                    NewExpirationDate = CurrentExpirationDate;
                     break;
             }
         }

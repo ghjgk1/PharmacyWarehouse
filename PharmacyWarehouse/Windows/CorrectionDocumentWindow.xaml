@@ -177,7 +177,6 @@
                                   SelectionChanged="CmbCorrectionType_SelectionChanged">
                             <ComboBoxItem Content="📦 Количество" IsSelected="True" Tag="Quantity"/>
                             <ComboBoxItem Content="💰 Цена" Tag="Price"/>
-                            <ComboBoxItem Content="📅 Срок годности" Tag="ExpirationDate"/>
                         </ComboBox>
                     </StackPanel>
 
@@ -372,11 +371,6 @@
                                                                 Margin="0,4,0,0"
                                                                 Visibility="{Binding IsPriceCorrection, Converter={StaticResource BoolToVisibilityConverter}}"/>
 
-                                                        <!-- СРОК ГОДНОСТИ -->
-                                                        <DatePicker SelectedDate="{Binding NewExpirationDateDateTime, UpdateSourceTrigger=PropertyChanged}"
-                                                                   Width="120"
-                                                                   Margin="0,4,0,0"
-                                                                   Visibility="{Binding IsExpirationDateCorrection, Converter={StaticResource BoolToVisibilityConverter}}"/>
                                                     </StackPanel>
                                                 </Grid>
                                             </Border>

@@ -194,9 +194,6 @@ public partial class DocumentViewWindow : Window, INotifyPropertyChanged
             {
                 CorrectionType.Quantity => "Корректировка количества",
                 CorrectionType.Price => "Корректировка цены",
-                CorrectionType.ExpirationDate => "Корректировка срока годности",
-                CorrectionType.Series => "Корректировка серии",
-                CorrectionType.Product => "Корректировка товара",
                 _ => Document.CorrectionType.ToString()
             };
         }
@@ -250,12 +247,12 @@ public partial class DocumentViewWindow : Window, INotifyPropertyChanged
     #endregion
 }
 
-#region Вспомогательные классы
+    #region Вспомогательные классы
 
-public class DocumentLineViewModel
-{
-    public string ProductName { get; set; } = null!;
-    public string Notes { get; set; } = null!;
-}
+    public class DocumentLineViewModel
+    {
+        public string ProductName { get; set; } = null!;
+        public string Notes { get; set; } = null!;
+    }
 
-#endregion
+    #endregion

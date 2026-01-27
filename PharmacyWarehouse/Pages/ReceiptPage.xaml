@@ -134,15 +134,17 @@
 
                                     <!-- Номер счета поставщика -->
                                     <TextBlock Text="Номер счета поставщика:" 
-                                              Grid.Row="1" Grid.Column="0"
+                                              Grid.Row="1" Grid.Column="0" 
                                               Style="{StaticResource BodyText}" 
                                               FontWeight="SemiBold"
-                                              Margin="0,12,0,0"/>
+                                              Margin="0,12,2,0"/>
                                     <TextBox x:Name="txtInvoiceNumber" 
-                                            Grid.Row="1" Grid.Column="1"
-                                            Margin="0,12,0,0"/>
+                                             Grid.Row="1" Grid.Column="1"
+                                             Margin="0,12,0,0"
+                                             MaxLength="24" 
+                                             ToolTip="Введите 20-значный номер банковского счета"/>
 
-                                    <!-- Примечание -->
+                                        <!-- Примечание -->
                                     <TextBlock Text="Примечание:" 
                                               Grid.Row="2" Grid.Column="0"
                                               Style="{StaticResource BodyText}" 

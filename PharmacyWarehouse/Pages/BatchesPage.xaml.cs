@@ -324,7 +324,11 @@ public partial class BatchesPage : Page
             return;
         }
 
-        }
+        var writeOffPage = new WriteOffPage(selectedBatch: SelectedBatch);
+        NavigationService.Navigate(writeOffPage);
+
+
+    }
 
     private void ShowExpiredBatches_Click(object sender, RoutedEventArgs e)
     {

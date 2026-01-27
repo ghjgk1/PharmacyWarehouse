@@ -2,11 +2,12 @@
 using PharmacyWarehouse.Models;
 using PharmacyWarehouse.Pages;
 using PharmacyWarehouse.Services;
+using PharmacyWarehouse.Services.DocumentGeneration;
 using PharmacyWarehouse.Windows;
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Linq;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -19,6 +20,7 @@ namespace PharmacyWarehouse.Pages
         private ObservableCollection<DocumentViewModel> _documents;
         private ICollectionView _documentsView;
         private readonly AuthService _authService;
+        private readonly IWordDocumentGenerator _wordGenerator;
         private string _currentUser = String.Empty;
 
         private List<DocumentViewModel> _allDocuments = new();
@@ -36,6 +38,7 @@ namespace PharmacyWarehouse.Pages
             InitializeComponent();
             _documentService = App.ServiceProvider.GetService<DocumentService>();
             _authService = App.ServiceProvider.GetService<AuthService>();
+            _wordGenerator = App.ServiceProvider.GetService<IWordDocumentGenerator>();
             _currentUser = AuthService.CurrentUser?.FullName ?? "Неизвестный пользователь";
 
             Loaded += DocumentsPage_Loaded;
@@ -239,7 +242,7 @@ namespace PharmacyWarehouse.Pages
                         NavigationService.Navigate(outgoingPage);
                         break;
                     case DocumentType.WriteOff:
-                        var writeOffPage = new OutgoingPage(selectedDoc.Id); // Используем ту же страницу
+                        var writeOffPage = new WriteOffPage(selectedDoc.Id); 
                         NavigationService.Navigate(writeOffPage);
                         break;
                 }
@@ -610,7 +613,70 @@ namespace PharmacyWarehouse.Pages
 
         private void PrintDocument_Click(object sender, RoutedEventArgs e)
         {
-            MessageBox.Show("Печать документа - функция в разработке");
+            try
+            {
+                if (dgDocuments.SelectedItem is not DocumentViewModel selectedDocVM)
+                {
+                    MessageBox.Show("Выберите документ для печати",
+                        "Внимание", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                // Диалог сохранения файла
+                var saveDialog = new Microsoft.Win32.SaveFileDialog
+                {
+                    Filter = "Документ Word (*.docx)|*.docx|PDF файл (*.pdf)|*.pdf",
+                    FileName = $"{selectedDocVM.Number}_{selectedDocVM.Date:yyyyMMdd}",
+                    DefaultExt = ".docx"
+                };
+
+                if (saveDialog.ShowDialog() == true)
+                {
+                    var document = _documentService.GetById(selectedDocVM.Id);
+                    if (document == null)
+                    {
+                        MessageBox.Show("Документ не найден в базе данных",
+                            "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                        return;
+                    }
+
+                    // Генерируем соответствующий тип документа
+                    switch (document.Type)
+                    {
+                        case DocumentType.Incoming:
+                            _wordGenerator.GenerateArrivalInvoice(document, saveDialog.FileName);
+                            break;
+                        case DocumentType.Outgoing:
+                            _wordGenerator.GenerateOutgoingInvoice(document, saveDialog.FileName);
+                            break;
+                        case DocumentType.WriteOff:
+                            _wordGenerator.GenerateWriteOffAct(document, saveDialog.FileName);
+                            break;
+                        case DocumentType.Correction:
+                            _wordGenerator.GenerateCorrectionAct(document, saveDialog.FileName);
+                            break;
+                        default:
+                            MessageBox.Show("Тип документа не поддерживается для печати",
+                                "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
+                            break;
+                    }
+
+                    // Открываем документ после создания
+                    if (File.Exists(saveDialog.FileName))
+                    {
+                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                        {
+                            FileName = saveDialog.FileName,
+                            UseShellExecute = true
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при создании документа: {ex.Message}",
+                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void CopyNumber_Click(object sender, RoutedEventArgs e)
@@ -923,9 +989,6 @@ namespace PharmacyWarehouse.Pages
                 {
                     Models.CorrectionType.Quantity => "Корректировка количества",
                     Models.CorrectionType.Price => "Корректировка цены",
-                    Models.CorrectionType.ExpirationDate => "Корректировка срока годности",
-                    Models.CorrectionType.Series => "Корректировка серии",
-                    Models.CorrectionType.Product => "Корректировка товара",
                     _ => "Корректировка"
                 }
                 : "-";

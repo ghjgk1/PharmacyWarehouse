@@ -29,6 +29,7 @@ public partial class OutgoingPage : Page, INotifyPropertyChanged
     private ICollectionView _filteredProductsView;
     private string _productSearchText = string.Empty;
     private ObservableCollection<Product> _allProductsObservable = new();
+    private List<Product> _productsWithStock;
 
     public event PropertyChangedEventHandler PropertyChanged;
 
@@ -101,13 +102,17 @@ public partial class OutgoingPage : Page, INotifyPropertyChanged
 
                 _allProductsObservable.Add(product);
 
+                var hasStock = _batchService.GetByProduct(product.Id)
+                .Any(b => b.IsActive && b.Quantity > 0);
+
+                if (hasStock)
+                    _productsWithStock.Add(product);
             }
 
             _filteredProductsView = CollectionViewSource.GetDefaultView(_allProductsObservable);
             _filteredProductsView.Filter = FilterProduct;
 
-            cmbProduct.SetBinding(ComboBox.ItemsSourceProperty,
-                new Binding("FilteredProducts") { Source = this });
+            cmbProduct.ItemsSource = _productsWithStock;
         }
         catch (Exception ex)
         {

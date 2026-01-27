@@ -359,6 +359,30 @@ namespace PharmacyWarehouse.Pages
             {
                 var documentService = App.ServiceProvider.GetService<DocumentService>();
 
+                // Рассчитываем общую сумму списания заранее
+                decimal totalAmount = 0;
+                var documentLines = new List<DocumentLine>();
+
+                foreach (var batch in product.Batches.Where(b => b.IsActive && b.Quantity > 0))
+                {
+                    decimal batchAmount = batch.SellingPrice * batch.Quantity;
+                    totalAmount += batchAmount;
+
+                    var line = new DocumentLine
+                    {
+                        ProductId = product.Id,
+                        Quantity = batch.Quantity,
+                        UnitPrice = batch.SellingPrice,
+                        SellingPrice = batch.SellingPrice,
+                        Series = !string.IsNullOrWhiteSpace(batch.Series) ? batch.Series : "Без серии",
+                        ExpirationDate = batch.ExpirationDate,
+                        Notes = $"Списание при архивации. Причина: {archiveInfo.Reason}",
+                        SourceBatchId = batch.Id
+                    };
+
+                    documentLines.Add(line);
+                }
+
                 var document = new Document
                 {
                     Type = DocumentType.WriteOff,
@@ -368,26 +392,9 @@ namespace PharmacyWarehouse.Pages
                            (!string.IsNullOrEmpty(archiveInfo.Comment) ? $"\nКомментарий: {archiveInfo.Comment}" : ""),
                     CreatedBy = _currentUser,
                     CreatedAt = DateTime.Now,
-                    Status = DocumentStatus.Draft
+                    Status = DocumentStatus.Processed,
+                    Amount = totalAmount // Устанавливаем сумму заранее
                 };
-
-                var documentLines = new List<DocumentLine>();
-                foreach (var batch in product.Batches.Where(b => b.IsActive && b.Quantity > 0))
-                {
-                    var line = new DocumentLine
-                    {
-                        ProductId = product.Id,
-                        Quantity = batch.Quantity,
-                        UnitPrice = batch.SellingPrice,
-                        SellingPrice = batch.SellingPrice,
-                        Series = batch.Series,
-                        ExpirationDate = batch.ExpirationDate,
-                        Notes = $"Списание при архивации. Причина: {archiveInfo.Reason}",
-                        SourceBatchId = batch.Id
-                    };
-
-                    documentLines.Add(line);
-                }
 
                 int documentId = documentService.CreateWriteOff(document, documentLines);
 
@@ -397,7 +404,8 @@ namespace PharmacyWarehouse.Pages
                 {
                     Success = true,
                     DocumentId = documentId,
-                    DocumentNumber = createdDocument?.Number ?? "Н/Д"
+                    DocumentNumber = createdDocument?.Number ?? "Н/Д",
+                    TotalAmount = totalAmount
                 };
             }
             catch (Exception ex)
@@ -409,7 +417,6 @@ namespace PharmacyWarehouse.Pages
                 };
             }
         }
-
         private void ExecuteArchive(Product product, ArchiveInfo archiveInfo, bool blockSales)
         {
             string fullComment = $"Причина архивации: {archiveInfo.Reason}";
@@ -747,4 +754,6 @@ public class WriteOffResult
     public string ErrorMessage { get; set; }
     public int DocumentId { get; set; }
     public string DocumentNumber { get; set; }
+    public decimal TotalAmount { get; set; }
+    
 }

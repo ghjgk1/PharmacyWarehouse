@@ -8,341 +8,341 @@
         d:DesignHeight="700" d:DesignWidth="1000"
         Title="Просмотр документа">
 
-        <Window.Resources>
-            <!-- Стили -->
-            <Style x:Key="LabelText" TargetType="TextBlock">
-                <Setter Property="FontSize" Value="14"/>
-                <Setter Property="FontWeight" Value="SemiBold"/>
-                <Setter Property="VerticalAlignment" Value="Center"/>
-            </Style>
+    <Window.Resources>
+        <!-- Стили -->
+        <Style x:Key="LabelText" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
 
-            <Style x:Key="ValueText" TargetType="TextBlock">
-                <Setter Property="FontSize" Value="14"/>
-                <Setter Property="VerticalAlignment" Value="Center"/>
-            </Style>
+        <Style x:Key="ValueText" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
 
-            <Style x:Key="SectionBorder" TargetType="Border">
-                <Setter Property="BorderBrush" Value="LightGray"/>
-                <Setter Property="BorderThickness" Value="1"/>
-                <Setter Property="CornerRadius" Value="8"/>
-                <Setter Property="Padding" Value="16"/>
-                <Setter Property="Margin" Value="0,0,0,16"/>
-                <Setter Property="Background" Value="White"/>
-            </Style>
+        <Style x:Key="SectionBorder" TargetType="Border">
+            <Setter Property="BorderBrush" Value="LightGray"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="16"/>
+            <Setter Property="Margin" Value="0,0,0,16"/>
+            <Setter Property="Background" Value="White"/>
+        </Style>
 
         <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
     </Window.Resources>
 
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
-            <Grid Margin="16">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <Grid Margin="16">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
 
-                <!-- ШАПКА ДОКУМЕНТА -->
-                <Border Grid.Row="0" Style="{StaticResource SectionBorder}">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
+            <!-- ШАПКА ДОКУМЕНТА -->
+            <Border Grid.Row="0" Style="{StaticResource SectionBorder}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
 
-                        <!-- Основная информация -->
-                        <StackPanel Grid.Column="0">
-                            <TextBlock Text="{Binding Document.TypeDescription}" 
+                    <!-- Основная информация -->
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="{Binding Document.TypeDescription}" 
                                    Style="{StaticResource H3}"
                                    FontSize="20"/>
 
-                            <Grid Margin="0,8,0,0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
+                        <Grid Margin="0,8,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
 
-                                <!-- Номер и дата -->
-                                <TextBlock Grid.Row="0" Grid.Column="0" 
+                            <!-- Номер и дата -->
+                            <TextBlock Grid.Row="0" Grid.Column="0" 
                                        Text="Номер:" 
                                        Style="{StaticResource BodyText}"/>
-                                <TextBlock Grid.Row="0" Grid.Column="1" 
+                            <TextBlock Grid.Row="0" Grid.Column="1" 
                                        Text="{Binding Document.Number}" 
                                        Style="{StaticResource ValueText}"
                                        Margin="8,0,16,0"/>
 
-                                <TextBlock Grid.Row="0" Grid.Column="2" 
+                            <TextBlock Grid.Row="0" Grid.Column="2" 
                                        Text="Дата:" 
                                        Style="{StaticResource BodyText}"/>
-                                <TextBlock Grid.Row="0" Grid.Column="3" 
+                            <TextBlock Grid.Row="0" Grid.Column="3" 
                                        Text="{Binding Document.Date, StringFormat='dd.MM.yyyy'}" 
                                        Style="{StaticResource ValueText}"
                                        Margin="8,0,16,0"/>
 
-                                <TextBlock Grid.Row="0" Grid.Column="4" 
+                            <TextBlock Grid.Row="0" Grid.Column="4" 
                                        Text="Статус:" 
                                        Style="{StaticResource BodyText}"/>
-                                <TextBlock Grid.Row="0" Grid.Column="5" 
+                            <TextBlock Grid.Row="0" Grid.Column="5" 
                                        Text="{Binding Document.Status}" 
                                        Margin="8,0,0,0">
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock" BasedOn="{StaticResource ValueText}">
-                                            <Setter Property="Foreground" Value="Gray"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding Document.Status}" Value="Processed">
-                                                    <Setter Property="Foreground" Value="Green"/>
-                                                </DataTrigger>
-                                                <DataTrigger Binding="{Binding Document.Status}" Value="Blocked">
-                                                    <Setter Property="Foreground" Value="Red"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource ValueText}">
+                                        <Setter Property="Foreground" Value="Gray"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Document.Status}" Value="Processed">
+                                                <Setter Property="Foreground" Value="Green"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Document.Status}" Value="Blocked">
+                                                <Setter Property="Foreground" Value="Red"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
 
-                                <!-- Общая сумма -->
-                                <TextBlock Grid.Row="1" Grid.Column="0" 
+                            <!-- Общая сумма -->
+                            <TextBlock Grid.Row="1" Grid.Column="0" 
                                        Text="Сумма:" 
                                        Style="{StaticResource BodyText}"
                                         Margin="0,8,0,0"/>
-                                <TextBlock Grid.Row="1" Grid.Column="1" 
+                            <TextBlock Grid.Row="1" Grid.Column="1" 
                                        Text="{Binding Document.TotalAmount, StringFormat='{}{0:N2} руб.'}" 
                                        Style="{StaticResource ValueText}"
                                        FontWeight="Bold"
                                        FontSize="16"
                                        Margin="8,8,0,0"/>
-                            </Grid>
-                        </StackPanel>
+                        </Grid>
+                    </StackPanel>
 
-                        <!-- Информация о проведении -->
-                        <StackPanel Grid.Column="1" MinWidth="200">
-                            <TextBlock Text="Информация о проведении:" 
+                    <!-- Информация о проведении -->
+                    <StackPanel Grid.Column="1" MinWidth="200">
+                        <TextBlock Text="Информация о проведении:" 
                                    Style="{StaticResource H3}"/>
 
-                            <StackPanel Margin="0,8,0,0">
-                                <TextBlock Text="Создал:" 
+                        <StackPanel Margin="0,8,0,0">
+                            <TextBlock Text="Создал:" 
                                        Style="{StaticResource BodyText}"/>
-                                <TextBlock Text="{Binding Document.CreatedBy}" 
+                            <TextBlock Text="{Binding Document.CreatedBy}" 
                                        Style="{StaticResource ValueText}"
                                        Margin="0,4,0,8"/>
 
-                                <TextBlock Text="Дата создания:" 
+                            <TextBlock Text="Дата создания:" 
                                        Style="{StaticResource BodyText}"/>
-                                <TextBlock Text="{Binding Document.CreatedAt, StringFormat='dd.MM.yyyy HH:mm'}" 
+                            <TextBlock Text="{Binding Document.CreatedAt, StringFormat='dd.MM.yyyy HH:mm'}" 
                                        Style="{StaticResource ValueText}"
                                        Margin="0,4,0,8"/>
 
-                                <TextBlock Text="Провел:" 
+                            <TextBlock Text="Провел:" 
                                        Style="{StaticResource BodyText}"/>
-                                <TextBlock Text="{Binding Document.SignedBy}" 
+                            <TextBlock Text="{Binding Document.SignedBy}" 
                                        Style="{StaticResource ValueText}"
                                        Margin="0,4,0,8"/>
 
-                                <TextBlock Text="Дата проведения:" 
+                            <TextBlock Text="Дата проведения:" 
                                        Style="{StaticResource BodyText}"/>
-                                <TextBlock Text="{Binding Document.SignedAt, StringFormat='dd.MM.yyyy HH:mm'}" 
+                            <TextBlock Text="{Binding Document.SignedAt, StringFormat='dd.MM.yyyy HH:mm'}" 
                                        Style="{StaticResource ValueText}"/>
-                            </StackPanel>
                         </StackPanel>
-                    </Grid>
-                </Border>
+                    </StackPanel>
+                </Grid>
+            </Border>
 
-                <!-- СПЕЦИФИЧЕСКАЯ ИНФОРМАЦИЯ ПО ТИПУ ДОКУМЕНТА -->
-                <!-- ПРИХОДНАЯ НАКЛАДНАЯ -->
-                <Border Grid.Row="1" 
+            <!-- СПЕЦИФИЧЕСКАЯ ИНФОРМАЦИЯ ПО ТИПУ ДОКУМЕНТА -->
+            <!-- ПРИХОДНАЯ НАКЛАДНАЯ -->
+            <Border Grid.Row="1" 
                     Style="{StaticResource SectionBorder}"
                     Visibility="{Binding IsIncomingDocument, Converter={StaticResource BoolToVisibilityConverter}}">
-                    <StackPanel>
-                        <TextBlock Text="Информация о поставщике" 
+                <StackPanel>
+                    <TextBlock Text="Информация о поставщике" 
                                    Style="{StaticResource H3}"/>
 
-                        <Grid Margin="0,8,0,0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
+                    <Grid Margin="0,8,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
 
-                            <TextBlock Grid.Row="0" Grid.Column="0" 
+                        <TextBlock Grid.Row="0" Grid.Column="0" 
                                    Text="Поставщик:" 
                                    Style="{StaticResource LabelText}"/>
-                            <TextBlock Grid.Row="0" Grid.Column="1" 
+                        <TextBlock Grid.Row="0" Grid.Column="1" 
                                    Text="{Binding Document.Supplier.Name}" 
                                    Style="{StaticResource ValueText}"
                                    Margin="8,0,16,0"/>
 
-                            <TextBlock Grid.Row="0" Grid.Column="2" 
+                        <TextBlock Grid.Row="0" Grid.Column="2" 
                                    Text="Счет №:" 
                                    Style="{StaticResource LabelText}"/>
-                            <TextBlock Grid.Row="0" Grid.Column="3" 
+                        <TextBlock Grid.Row="0" Grid.Column="3" 
                                    Text="{Binding Document.SupplierInvoiceNumber}" 
                                    Style="{StaticResource ValueText}"
                                    Margin="8,0,0,0"/>
 
-                            <TextBlock Grid.Row="1" Grid.Column="2" 
+                        <TextBlock Grid.Row="1" Grid.Column="2" 
                                    Text="Дата счета:" 
                                    Style="{StaticResource LabelText}"
                                    Margin="0,8,0,0"/>
-                            <TextBlock Grid.Row="1" Grid.Column="3" 
+                        <TextBlock Grid.Row="1" Grid.Column="3" 
                                    Text="{Binding Document.SupplierInvoiceDate, StringFormat='dd.MM.yyyy'}" 
                                    Style="{StaticResource ValueText}"
                                    Margin="8,8,0,0"/>
-                        </Grid>
-                    </StackPanel>
-                </Border>
+                    </Grid>
+                </StackPanel>
+            </Border>
 
-                <!-- РАСХОДНАЯ НАКЛАДНАЯ -->
-                <Border Grid.Row="1" 
+            <!-- РАСХОДНАЯ НАКЛАДНАЯ -->
+            <Border Grid.Row="1" 
                     Style="{StaticResource SectionBorder}"
                     Visibility="{Binding IsOutgoingDocument, Converter={StaticResource BoolToVisibilityConverter}}">
-                    <StackPanel>
-                        <TextBlock Text="Информация о получателе" 
+                <StackPanel>
+                    <TextBlock Text="Информация о получателе" 
                                    Style="{StaticResource H3}"/>
 
-                        <Grid Margin="0,8,0,0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
+                    <Grid Margin="0,8,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
 
-                            <TextBlock Grid.Column="0" 
+                        <TextBlock Grid.Column="0" 
                                    Text="Получатель:" 
                                    Style="{StaticResource LabelText}"/>
-                            <TextBlock Grid.Column="1" 
+                        <TextBlock Grid.Column="1" 
                                    Text="{Binding Document.CustomerName}" 
                                    Style="{StaticResource ValueText}"
                                    Margin="8,0,16,0"/>
 
-                            <TextBlock Grid.Column="2" 
+                        <TextBlock Grid.Column="2" 
                                    Text="Документ:" 
                                    Style="{StaticResource LabelText}"/>
-                            <TextBlock Grid.Column="3" 
+                        <TextBlock Grid.Column="3" 
                                    Text="{Binding Document.CustomerDocument}" 
                                    Style="{StaticResource ValueText}"
                                    Margin="8,0,0,0"/>
-                        </Grid>
-                    </StackPanel>
-                </Border>
+                    </Grid>
+                </StackPanel>
+            </Border>
 
-                <!-- АКТ СПИСАНИЯ -->
-                <Border Grid.Row="1" 
+            <!-- АКТ СПИСАНИЯ -->
+            <Border Grid.Row="1" 
                     Style="{StaticResource SectionBorder}"
                     Visibility="{Binding IsWriteOffDocument, Converter={StaticResource BoolToVisibilityConverter}}">
-                    <StackPanel>
-                        <TextBlock Text="Информация о списании" 
+                <StackPanel>
+                    <TextBlock Text="Информация о списании" 
                                    Style="{StaticResource H3}"/>
 
-                        <Grid Margin="0,8,0,0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
+                    <Grid Margin="0,8,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
 
-                            <TextBlock Grid.Row="0" Grid.Column="0" 
+                        <TextBlock Grid.Row="0" Grid.Column="0" 
                                    Text="Причина:" 
                                    Style="{StaticResource LabelText}"/>
-                            <TextBlock Grid.Row="0" Grid.Column="1" 
+                        <TextBlock Grid.Row="0" Grid.Column="1" 
                                    Text="{Binding Document.WriteOffReasonDescription}" 
                                    Style="{StaticResource ValueText}"
                                    Margin="8,0,16,0"/>
 
-                            <TextBlock Grid.Row="1" Grid.Column="0" 
+                        <TextBlock Grid.Row="1" Grid.Column="0" 
                                    Text="Комиссия:" 
                                    Style="{StaticResource LabelText}"
                                    Margin="0,8,0,0"/>
-                            <TextBlock Grid.Row="1" Grid.Column="1" 
+                        <TextBlock Grid.Row="1" Grid.Column="1" 
                                    Text="{Binding Document.WriteOffCommission}" 
                                    Style="{StaticResource ValueText}"
                                    Margin="8,8,16,0"/>
-                        </Grid>
-                    </StackPanel>
-                </Border>
+                    </Grid>
+                </StackPanel>
+            </Border>
 
-                <!-- КОРРЕКТИРОВОЧНЫЙ ДОКУМЕНТ -->
-                <Border Grid.Row="1" 
+            <!-- КОРРЕКТИРОВОЧНЫЙ ДОКУМЕНТ -->
+            <Border Grid.Row="1" 
                     Style="{StaticResource SectionBorder}"
                     Visibility="{Binding IsCorrectionDocument, Converter={StaticResource BoolToVisibilityConverter}}">
-                    <StackPanel>
-                        <TextBlock Text="Информация о корректировке" 
+                <StackPanel>
+                    <TextBlock Text="Информация о корректировке" 
                                    Style="{StaticResource H3}"/>
 
-                        <Grid Margin="0,8,0,0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
+                    <Grid Margin="0,8,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
 
-                            <TextBlock Grid.Row="0" Grid.Column="0" 
+                        <TextBlock Grid.Row="0" Grid.Column="0" 
                                    Text="Основание:" 
                                    Style="{StaticResource LabelText}"/>
-                            <TextBlock Grid.Row="0" Grid.Column="1" 
+                        <TextBlock Grid.Row="0" Grid.Column="1" 
                                    Text="{Binding Document.OriginalDocument.Number}" 
                                    Style="{StaticResource ValueText}"
                                    Margin="8,0,16,0"/>
 
-                            <TextBlock Grid.Row="1" Grid.Column="0" 
+                        <TextBlock Grid.Row="1" Grid.Column="0" 
                                    Text="Тип коррекции:" 
                                    Style="{StaticResource LabelText}"
                                    Margin="0,8,0,0"/>
-                            <TextBlock Grid.Row="1" Grid.Column="1" 
+                        <TextBlock Grid.Row="1" Grid.Column="1" 
                                    Text="{Binding Document.CorrectionTypeDescription}" 
                                    Style="{StaticResource ValueText}"
                                    Margin="8,8,16,0"/>
 
-                            <TextBlock Grid.Row="2" Grid.Column="0" 
+                        <TextBlock Grid.Row="2" Grid.Column="0" 
                                    Text="Причина:" 
                                    Style="{StaticResource LabelText}"
                                    Margin="0,8,0,0"/>
-                            <TextBlock Grid.Row="2" Grid.Column="1" 
+                        <TextBlock Grid.Row="2" Grid.Column="1" 
                                    Text="{Binding Document.CorrectionReason}" 
                                    Style="{StaticResource ValueText}"
                                    Margin="8,8,16,0"
                                    TextWrapping="Wrap"/>
-                        </Grid>
-                    </StackPanel>
-                </Border>
+                    </Grid>
+                </StackPanel>
+            </Border>
 
-                <!-- ТОВАРЫ -->
-                <Border Grid.Row="2" Style="{StaticResource SectionBorder}">
-                    <StackPanel>
-                        <TextBlock Text="Товары" 
+            <!-- ТОВАРЫ -->
+            <Border Grid.Row="2" Style="{StaticResource SectionBorder}">
+                <StackPanel>
+                    <TextBlock Text="Товары" 
                                    Style="{StaticResource H3}"/>
 
-                        <TextBlock Text="{Binding ProductsCount, StringFormat='Всего товаров: {0}'}" 
+                    <TextBlock Text="{Binding ProductsCount, StringFormat='Всего товаров: {0}'}" 
                                Style="{StaticResource LabelText}"
                                Margin="0,0,0,8"/>
 
-                        <DataGrid x:Name="dgProducts" 
+                    <DataGrid x:Name="dgProducts" 
                               ItemsSource="{Binding Document.DocumentLines}"
                               AutoGenerateColumns="False"
                               IsReadOnly="True"
@@ -353,149 +353,150 @@
                               AlternatingRowBackground="#F5F5F5"
                               BorderThickness="0"
                               Margin="0,8,0,0">
-                            <DataGrid.Columns>
-                                <!-- Общие колонки -->
-                                <DataGridTextColumn Header="№" 
+                        <DataGrid.Columns>
+                            <!-- Общие колонки -->
+                            <DataGridTextColumn Header="№" 
                                                 Binding="{Binding Id}"
                                                 Width="50"/>
 
-                                <DataGridTextColumn Header="Наименование" 
+                            <DataGridTextColumn Header="Наименование" 
                                                 Binding="{Binding Product.Name}"
                                                 Width="250"/>
 
-                                <DataGridTextColumn Header="Кол-во" 
+                            <DataGridTextColumn Header="Кол-во" 
                                                 Binding="{Binding Quantity}"
                                                 Width="80"/>
 
-                                <DataGridTextColumn Header="Ед. изм." 
+                            <DataGridTextColumn Header="Ед. изм." 
                                                 Binding="{Binding Product.UnitOfMeasure}"
                                                 Width="80"/>
 
-                                <!-- Колонки для прихода/корректировки -->
-                                <DataGridTextColumn Header="Серия" 
+                            <!-- Колонки для прихода/корректировки -->
+                            <DataGridTextColumn Header="Серия" 
                                                 Binding="{Binding Series}"
                                                 Width="100"
                                                 Visibility="{Binding DataContext.ShowSeriesColumn, 
                                                     RelativeSource={RelativeSource AncestorType=DataGrid}, 
                                                     Converter={StaticResource BoolToVisibilityConverter}}"/>
 
-                                <DataGridTextColumn Header="Срок годности" 
+                            <DataGridTextColumn Header="Срок годности" 
                                                 Binding="{Binding ExpirationDate, StringFormat='dd.MM.yyyy'}"
                                                 Width="120"
                                                 Visibility="{Binding DataContext.ShowExpirationColumn, 
                                                     RelativeSource={RelativeSource AncestorType=DataGrid}, 
                                                     Converter={StaticResource BoolToVisibilityConverter}}"/>
 
-                                <!-- Цены -->
-                                <DataGridTextColumn Header="Цена закупки" 
+                            <!-- Цены -->
+                            <DataGridTextColumn Header="Цена закупки" 
                                                 Binding="{Binding UnitPrice, StringFormat='{}{0:N2} руб.'}"
                                                 Width="120"/>
 
-                                <DataGridTextColumn Header="Цена продажи" 
+                            <DataGridTextColumn Header="Цена продажи" 
                                                 Binding="{Binding SellingPrice, StringFormat='{}{0:N2} руб.'}"
                                                 Width="120"
                                                 Visibility="{Binding DataContext.ShowSellingPriceColumn, 
                                                     RelativeSource={RelativeSource AncestorType=DataGrid}, 
                                                     Converter={StaticResource BoolToVisibilityConverter}}"/>
 
-                                <DataGridTextColumn Header="Сумма" 
+                            <DataGridTextColumn Header="Сумма" 
                                                 Binding="{Binding TotalPrice, StringFormat='{}{0:N2} руб.'}"
                                                 Width="120"
                                                 FontWeight="Bold"/>
 
-                                <!-- Для корректировки -->
-                                <DataGridTextColumn Header="Старое значение" 
+                            <!-- Для корректировки -->
+                            <DataGridTextColumn Header="Старое значение" 
                                                 Binding="{Binding OldValue}"
                                                 Width="120"
                                                 Visibility="{Binding DataContext.ShowOldValueColumn, 
                                                     RelativeSource={RelativeSource AncestorType=DataGrid}, 
                                                     Converter={StaticResource BoolToVisibilityConverter}}"/>
 
-                                <DataGridTextColumn Header="Новое значение" 
+                            <DataGridTextColumn Header="Новое значение" 
                                                 Binding="{Binding NewValue}"
                                                 Width="120"
                                                 Visibility="{Binding DataContext.ShowNewValueColumn, 
                                                     RelativeSource={RelativeSource AncestorType=DataGrid}, 
                                                     Converter={StaticResource BoolToVisibilityConverter}}"/>
-                            </DataGrid.Columns>
-                        </DataGrid>
+                        </DataGrid.Columns>
+                    </DataGrid>
 
-                        <!-- Итоговая сумма -->
-                        <Border BorderBrush="LightGray" 
+                    <!-- Итоговая сумма -->
+                    <Border BorderBrush="LightGray" 
                             BorderThickness="0,1,0,0"
                             Margin="0,16,0,0"
                             Padding="0,8,0,0">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
 
-                                <TextBlock Grid.Column="1" 
+                            <StackPanel Grid.Column="1">
+                                <TextBlock  
                                        Text="Итого:"
                                        Style="{StaticResource LabelText}"/>
 
-                                <TextBlock Grid.Column="2" 
+                                <TextBlock
                                        Text="{Binding Document.TotalAmount, StringFormat='{}{0:N2} руб.'}"
                                        Style="{StaticResource ValueText}"
                                        FontSize="16"
-                                       FontWeight="Bold"
-                                       Margin="16,0,0,0"/>
-                            </Grid>
-                        </Border>
-                    </StackPanel>
-                </Border>
+                                       FontWeight="Bold" HorizontalAlignment="Right"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </StackPanel>
+            </Border>
 
-                <!-- ПРИМЕЧАНИЯ -->
-                <Border Grid.Row="3" Style="{StaticResource SectionBorder}">
-                    <StackPanel>
-                        <TextBlock Text="Примечания" 
+            <!-- ПРИМЕЧАНИЯ -->
+            <Border Grid.Row="3" Style="{StaticResource SectionBorder}">
+                <StackPanel>
+                    <TextBlock Text="Примечания" 
                                    Style="{StaticResource H3}"/>
 
-                        <!-- Общее примечание -->
-                        <StackPanel Margin="0,8,0,0">
-                            <TextBlock Text="Общее примечание:" 
+                    <!-- Общее примечание -->
+                    <StackPanel Margin="0,8,0,0">
+                        <TextBlock Text="Общее примечание:" 
                                    Style="{StaticResource LabelText}"/>
-                            <TextBlock Text="{Binding Document.Notes}" 
+                        <TextBlock Text="{Binding Document.Notes}" 
                                    Style="{StaticResource ValueText}"
                                    TextWrapping="Wrap"
                                    Margin="0,4,0,0"/>
-                        </StackPanel>
+                    </StackPanel>
 
-                        <!-- Примечания к строкам (только если есть) -->
-                        <ItemsControl ItemsSource="{Binding DocumentLinesWithNotes}"
+                    <!-- Примечания к строкам (только если есть) -->
+                    <ItemsControl ItemsSource="{Binding DocumentLinesWithNotes}"
                                   Margin="0,16,0,0"
                                   Visibility="{Binding HasLineNotes, Converter={StaticResource BoolToVisibilityConverter}}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Border BorderBrush="LightGray"
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border BorderBrush="LightGray"
                                         BorderThickness="0,0,0,1"
                                         Padding="0,0,0,8"
                                         Margin="0,0,0,8">
-                                        <StackPanel>
-                                            <TextBlock Text="{Binding ProductName}" 
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding ProductName}" 
                                                    FontWeight="SemiBold"/>
-                                            <TextBlock Text="{Binding Notes}" 
+                                        <TextBlock Text="{Binding Notes}" 
                                                    Margin="0,4,0,0"
                                                    TextWrapping="Wrap"
                                                    FontStyle="Italic"/>
-                                        </StackPanel>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </StackPanel>
-                </Border>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
 
-                <!-- КОРРЕКТИРОВКИ (для основного документа) -->
-                <Border Grid.Row="4" 
+            <!-- КОРРЕКТИРОВКИ (для основного документа) -->
+            <Border Grid.Row="4" 
                     Style="{StaticResource SectionBorder}"
                     Visibility="{Binding HasCorrections, Converter={StaticResource BoolToVisibilityConverter}}">
-                    <StackPanel>
-                        <TextBlock Text="Корректировки документа" 
+                <StackPanel>
+                    <TextBlock Text="Корректировки документа" 
                                    Style="{StaticResource H3}"/>
 
-                        <DataGrid ItemsSource="{Binding Document.Corrections}"
+                    <DataGrid ItemsSource="{Binding Document.Corrections}"
                               AutoGenerateColumns="False"
                               IsReadOnly="True"
                               HeadersVisibility="Column"
@@ -505,57 +506,30 @@
                               AlternatingRowBackground="#F5F5F5"
                               BorderThickness="0"
                               Margin="0,8,0,0">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="Номер" 
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Номер" 
                                                 Binding="{Binding Number}"
                                                 Width="120"/>
 
-                                <DataGridTextColumn Header="Дата" 
+                            <DataGridTextColumn Header="Дата" 
                                                 Binding="{Binding Date, StringFormat='dd.MM.yyyy'}"
                                                 Width="100"/>
 
-                                <DataGridTextColumn Header="Тип коррекции" 
+                            <DataGridTextColumn Header="Тип коррекции" 
                                                 Binding="{Binding CorrectionTypeDescription}"
                                                 Width="150"/>
 
-                                <DataGridTextColumn Header="Причина" 
+                            <DataGridTextColumn Header="Причина" 
                                                 Binding="{Binding CorrectionReason}"
                                                 Width="250"/>
 
-                                <DataGridTextColumn Header="Провел" 
+                            <DataGridTextColumn Header="Провел" 
                                                 Binding="{Binding SignedBy}"
                                                 Width="120"/>
-                            </DataGrid.Columns>
-                        </DataGrid>
-                    </StackPanel>
-                </Border>
-
-                <!-- КНОПКИ ДЕЙСТВИЙ -->
-                <Border Grid.Row="5" 
-                    BorderBrush="LightGray"
-                    BorderThickness="0,1,0,0"
-                    Padding="0,16,0,0">
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                        <Button Content="📄 Печать"
-                            Width="120"
-                            Height="36"
-                            Margin="0,0,8,0"/>
-
-                        <Button Content="📤 Экспорт"
-                            Width="120"
-                            Height="36"
-                            Margin="0,0,8,0"/>
-
-                        <Button Content="✏️ Редактировать"
-                            Width="140"
-                            Height="36"
-                            Margin="0,0,8,0"/>
-
-                        <Button Content="⬅️ Назад"
-                            Width="120"
-                            Height="36"/>
-                    </StackPanel>
-                </Border>
-            </Grid>
-        </ScrollViewer>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </ScrollViewer>
 </Window>

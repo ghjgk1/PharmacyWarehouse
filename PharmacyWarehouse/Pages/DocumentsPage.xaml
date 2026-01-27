@@ -44,6 +44,13 @@
                                     Margin="8,0,0,0"
                                     Click="CreateWriteOff_Click"
                                     ToolTip="Создать акт списания"/>
+
+                            <Separator Margin="15"/>
+
+                            <Button Content="🖨️ Генерация документа" 
+                                      Style="{StaticResource PrimaryButton}" 
+                                      Click="PrintDocument_Click"
+                                      ToolTip="Создать и открыть документ Word"/>
                         </StackPanel>
 
                         <!-- Кнопки управления -->
@@ -165,7 +172,7 @@
                                 <ComboBox x:Name="cmbDocumentType" 
                                           SelectionChanged="CmbDocumentType_SelectionChanged">
                                     <ComboBoxItem Content="Все типы" IsSelected="True"/>
-                                    <ComboBoxItem Content="📥 Приход" Tag="Arrival"/>
+                                    <ComboBoxItem Content="📥 Приход" Tag="Incoming"/>
                                     <ComboBoxItem Content="📤 Расход" Tag="Outgoing"/>
                                     <ComboBoxItem Content="🗑️ Списание" Tag="WriteOff"/>
                                 </ComboBox>

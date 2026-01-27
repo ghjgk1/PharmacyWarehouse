@@ -523,6 +523,15 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
             return false;
         }
 
+        string cleanAccount = txtInvoiceNumber.Text.Replace(" ", "").Replace("-", "");
+
+        if (cleanAccount.Length != 20 && !cleanAccount.All(char.IsDigit))
+        {
+            ShowError("Ошибка", "Введите корректный номер счета поставщика");
+            return false;
+        }
+
+
         return true;
     }
 

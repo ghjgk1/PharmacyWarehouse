@@ -130,8 +130,13 @@ namespace PharmacyWarehouse.Services
             product.ArchiveDate = DateTime.Now;
             product.ArchiveReason = reason;
             product.ArchiveComment = comment;
+            foreach(var batch in product.Batches)
+            {
+                batch.IsActive = false;
+            }
 
-            var archiveNote = $"\n---\n[АРХИВ] {DateTime.Now:dd.MM.yyyy HH:mm}" +
+
+                var archiveNote = $"\n---\n[АРХИВ] {DateTime.Now:dd.MM.yyyy HH:mm}" +
                              $"\nПричина: {reason}" +
                              $"\nОстаток: {product.CurrentStock} шт." +
                              $"\nСтатус: {(blockSales ? "Заблокирован" : "Дораспродажа")}";

@@ -23,6 +23,7 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
     private Document _currentDocument;
     private ObservableCollection<DocumentLine> _documentItems;
     private List<Product> _allProducts = new();
+    private List<Product> _productsWithStock = new();
     private List<Batch> _availableBatches = new();
     private Batch _selectedBatch;
 
@@ -37,7 +38,7 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
     private string _currentUser = String.Empty;
 
 
-    public WriteOffPage(int? documentId = null)
+    public WriteOffPage(int? documentId = null, Batch? selectedBatch = null)
     {
         InitializeComponent();
         _documentService = App.ServiceProvider.GetService<DocumentService>();
@@ -52,7 +53,9 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
         DataContext = this;
         Loaded += (s, e) =>
         {
-            if (documentId.HasValue)
+            if (selectedBatch != null)
+                PrefillWithBatch(selectedBatch);
+            else if (documentId.HasValue)
                 LoadDraft(documentId.Value);
             else
                 InitializeNewDocument();
@@ -107,6 +110,44 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
         _documentItems.Clear();
         UpdateDocumentTotals();
         ResetItemForm();
+    }
+
+    private void PrefillWithBatch(Batch batch)
+    {
+        try
+        {
+            InitializeNewDocument();
+
+            var product = _allProducts.FirstOrDefault(p => p.Id == batch.ProductId);
+            if (product != null)
+            {
+                cmbProduct.SelectedItem = product;
+
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    if (cmbBatchSeries.ItemsSource != null)
+                    {
+                        var batches = cmbBatchSeries.ItemsSource as List<Batch>;
+                        if (batches != null)
+                        {
+                            var selectedBatchInList = batches.FirstOrDefault(b => b.Id == batch.Id);
+                            if (selectedBatchInList != null)
+                            {
+                                cmbBatchSeries.SelectedItem = selectedBatchInList;
+
+                                txtQuantity.Text = batch.Quantity.ToString();
+
+                                ShowInfo($"Автоматически заполнена форма для списания партии: {batch.Series}");
+                            }
+                        }
+                    }
+                }), System.Windows.Threading.DispatcherPriority.Background);
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowError("Ошибка предзаполнения формы", ex.Message);
+        }
     }
 
     private void LoadDraft(int documentId)
@@ -173,6 +214,12 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
                 // Добавляем товар в оба списка
                 _allProducts.Add(product);
                 _allProductsObservable.Add(product);
+
+                var hasStock = _batchService.GetByProduct(product.Id)
+                .Any(b => b.IsActive && b.Quantity > 0);
+
+                if (hasStock)
+                    _productsWithStock.Add(product);
             }
 
             // Настраиваем фильтрацию товаров
@@ -180,8 +227,7 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
             _filteredProductsView.Filter = FilterProduct;
 
             // Привязываем к ComboBox
-            cmbProduct.SetBinding(ComboBox.ItemsSourceProperty,
-                new Binding("FilteredProducts") { Source = this });
+            cmbProduct.ItemsSource = _productsWithStock;
         }
         catch (Exception ex)
         {

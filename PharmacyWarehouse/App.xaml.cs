@@ -1,8 +1,9 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using PharmacyWarehouse.Pages;
 using PharmacyWarehouse.Services;
-using System.Windows;
+using PharmacyWarehouse.Services.DocumentGeneration;
 using System.IO;
+using System.Windows;
 using System.Windows.Threading;
 
 namespace PharmacyWarehouse
@@ -19,6 +20,8 @@ namespace PharmacyWarehouse
             var services = new ServiceCollection();
 
             // Регистрируем сервисы
+            services.AddSingleton<IWordDocumentGenerator, WordDocumentGenerator>();
+
             services.AddSingleton<AuthService>();
             services.AddSingleton<ProductService>();
             services.AddSingleton<SupplierService>();
