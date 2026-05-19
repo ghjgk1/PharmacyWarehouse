@@ -1,4 +1,4 @@
-﻿<Page x:Class="PharmacyWarehouse.Pages.ReceiptPage"
+<Page x:Class="PharmacyWarehouse.Pages.ReceiptPage"
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
@@ -26,12 +26,21 @@
                                  Height="42"
                                  Click="SaveDraft_Click"/>
 
-                        <Button Content="✅ Провести документ" 
+                        <Button x:Name="btnProcessDocument"
+                                 Content="✅ Провести документ" 
                                  Style="{StaticResource SuccessButton}" 
                                  Width="160"
                                  Height="42"
                                  Margin="8,0,0,0"
                                  Click="ProcessDocument_Click"/>
+
+                        <TextBlock x:Name="txtAlreadySentHint"
+                                   Text="Документ уже отправлен в МДЛП"
+                                   Foreground="{StaticResource AccentOrangeBrush}"
+                                   FontWeight="SemiBold"
+                                   VerticalAlignment="Center"
+                                   Margin="16,0,0,0"
+                                   Visibility="Collapsed"/>
 
                         <Button Content="🗑️ Отмена" 
                                  Style="{StaticResource DangerButton}" 
@@ -250,7 +259,7 @@
                                       Style="{StaticResource BodyText}" 
                                       FontWeight="SemiBold"
                                       Margin="0,0,0,8"/>
-                            <TextBlock Text="Количество *" 
+                            <TextBlock x:Name="lblQuantity" Text="Количество *" 
                                       Grid.Column="1" Grid.Row="0"
                                       Style="{StaticResource BodyText}" 
                                       FontWeight="SemiBold"
@@ -275,6 +284,12 @@
                                       Style="{StaticResource BodyText}" 
                                       FontWeight="SemiBold"
                                       Margin="0,0,0,8"/>
+                            <TextBlock x:Name="lblSgtin" Text="Код маркировки (SGTIN)" 
+                                      Grid.Column="6" Grid.Row="0"
+                                      Style="{StaticResource BodyText}" 
+                                      FontWeight="SemiBold"
+                                      Margin="0,0,0,8"
+                                      Visibility="Collapsed"/>
 
                             <!-- Поля ввода -->
                             <ComboBox x:Name="cmbProduct" 
@@ -337,9 +352,15 @@
                                       Grid.Column="5" Grid.Row="1"
                                       SelectedDateFormat="Short"
                                       Height="30"/>
-
+                            <TextBox x:Name="txtSgtin"
+                                      Grid.Column="6" Grid.Row="1"
+                                      Margin="0,0,8,0"
+                                      Height="36"
+                                      MaxLength="27"
+                                      Visibility="Collapsed"
+                                      TextChanged="TxtSgtin_TextChanged"/>
                             <Button Content="➕ Добавить" 
-                                   Grid.Column="5" Grid.Row="2"
+                                   Grid.Column="6" Grid.Row="2"
                                    Style="{StaticResource PrimaryButton}"
                                    Width="120"
                                    Height="36"

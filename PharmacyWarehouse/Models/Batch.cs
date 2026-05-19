@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Windows.Media;
 
@@ -17,6 +17,7 @@ public partial class Batch : ObservableObject
     private DateOnly _arrivalDate;
     private bool _isActive = true;
     private int? _incomingDocumentId;         
+    private string? _sgtin;
 
     public int Id
     {
@@ -84,7 +85,18 @@ public partial class Batch : ObservableObject
         set => SetProperty(ref _incomingDocumentId, value);
     }
 
+    public string? Sgtin
+    {
+        get => _sgtin;
+        set => SetProperty(ref _sgtin, value);
+    }
+
+    [NotMapped]
     public ICollection<DocumentLine> DocumentLines { get; set; } = new ObservableCollection<DocumentLine>();
+    public ICollection<BatchCorrectionLog> BatchCorrectionLogs { get; set; } = new ObservableCollection<BatchCorrectionLog>();
+    public ICollection<DocumentLine> DocumentLineCreatedBatches { get; set; } = new ObservableCollection<DocumentLine>();
+    public ICollection<DocumentLine> DocumentLineSourceBatches { get; set; } = new ObservableCollection<DocumentLine>();
+    public ICollection<MdlpSgtin> MdlpSgtins { get; set; } = new ObservableCollection<MdlpSgtin>();
     public Product Product { get; set; } = null!;
     public Supplier Supplier { get; set; } = null!;
     public Document? IncomingDocument { get; set; }  

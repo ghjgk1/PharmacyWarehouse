@@ -1,6 +1,9 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using PharmacyWarehouse.Data;
 using PharmacyWarehouse.Models;
 using PharmacyWarehouse.Services;
+using PharmacyWarehouse.Services.Mdlp;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -19,6 +22,8 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
     private readonly ProductService _productService;
     private readonly BatchService _batchService;
     private readonly AuthService _authService;
+    private readonly IMdlpService _mdlpService;
+    private readonly PharmacyWarehouseContext _context = BaseDbService.Instance.Context;
 
     private Document _currentDocument;
     private ObservableCollection<DocumentLine> _documentItems;
@@ -45,6 +50,7 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
         _productService = App.ServiceProvider.GetService<ProductService>();
         _batchService = App.ServiceProvider.GetService<BatchService>();
         _authService = App.ServiceProvider.GetService<AuthService>();
+        _mdlpService = App.ServiceProvider.GetService<IMdlpService>();
 
         _currentUser = AuthService.CurrentUser?.FullName ?? "Неизвестный пользователь";
 
@@ -107,6 +113,9 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
         txtResponsiblePerson.Text = _currentUser;
         txtCommission.Text = $"Состав комиссии: {_currentUser}";
 
+        btnProcessWriteOff.IsEnabled = true;
+        txtAlreadySentHint.Visibility = Visibility.Collapsed;
+
         _documentItems.Clear();
         UpdateDocumentTotals();
         ResetItemForm();
@@ -150,7 +159,7 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
         }
     }
 
-    private void LoadDraft(int documentId)
+    private async void LoadDraft(int documentId)
     {
         try
         {
@@ -159,6 +168,22 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
                 return;
 
             _currentDocument = draft;
+
+            // Проверяем, был ли документ уже отправлен в МДЛП
+            var existingMdlpDoc = await _context.MdlpDocuments
+                .FirstOrDefaultAsync(d => d.DocumentId == _currentDocument.Id);
+
+            if (existingMdlpDoc != null)
+            {
+                btnProcessWriteOff.IsEnabled = false;
+                txtAlreadySentHint.Visibility = Visibility.Visible;
+                txtAlreadySentHint.Text = $"Документ уже отправлен в МДЛП (статус: {existingMdlpDoc.StatusText})";
+            }
+            else
+            {
+                btnProcessWriteOff.IsEnabled = true;
+                txtAlreadySentHint.Visibility = Visibility.Collapsed;
+            }
 
             // Заполняем поля формы
             txtDocNumber.Text = draft.Number;
@@ -276,60 +301,118 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
             return;
         }
 
-        if (cmbBatchSeries.SelectedItem == null)
-        {
-            ShowError("Ошибка", "Выберите партию для списания");
-            return;
-        }
-
-        if (!int.TryParse(txtQuantity.Text, out int quantity) || quantity <= 0)
-        {
-            ShowError("Ошибка", "Введите корректное количество");
-            return;
-        }
-
         var selectedProduct = cmbProduct.SelectedItem as Product;
         if (selectedProduct == null) return;
 
-        var selectedBatch = cmbBatchSeries.SelectedItem as Batch;
-        if (selectedBatch == null) return;
-
-        // Проверка доступного количества
-        if (quantity > selectedBatch.Quantity)
+        if (selectedProduct.IsTracked)
         {
-            ShowError("Ошибка",
-                $"Недостаточно товара в выбранной партии.\n" +
-                $"Доступно: {selectedBatch.Quantity} шт.\n" +
-                $"Пытаетесь списать: {quantity} шт.");
-            return;
-        }
-
-        try
-        {
-            var documentLine = new DocumentLine
+            // Валидация для маркированных товаров
+            if (cmbSgtin.SelectedItem is not MdlpSgtin selectedSgtin)
             {
-                ProductId = selectedProduct.Id,
-                Product = selectedProduct,
-                Quantity = quantity,
-                UnitPrice = selectedBatch.SellingPrice,
-                SellingPrice = selectedBatch.SellingPrice,
-                Series = selectedBatch.Series,
-                ExpirationDate = selectedBatch.ExpirationDate,
-                SourceBatchId = selectedBatch.Id,
-                Notes = $"Списание",
-            };
+                ShowError("Ошибка", "Выберите код маркировки (SGTIN)");
+                return;
+            }
 
-            _documentItems.Add(documentLine);
+            // Проверяем, не использован ли уже этот SGTIN в документе
+            var existingInDoc = _documentItems.Any(item => item.Sgtin == selectedSgtin.Sgtin);
+            if (existingInDoc)
+            {
+                ShowError("Ошибка", "Этот код маркировки уже добавлен в документ");
+                return;
+            }
 
-            // Сбрасываем форму
-            ResetItemForm();
+            try
+            {
+                // Находим партию для этого SGTIN
+                var selectedBatch = _batchService.GetById(selectedSgtin.BatchId);
+                if (selectedBatch == null)
+                {
+                    ShowError("Ошибка", "Партия для SGTIN не найдена");
+                    return;
+                }
 
-            UpdateDocumentTotals();
-            ShowInfo($"Товар '{selectedProduct.Name}' добавлен в акт списания");
+                var documentLine = new DocumentLine
+                {
+                    ProductId = selectedProduct.Id,
+                    Product = selectedProduct,
+                    Quantity = 1,
+                    UnitPrice = selectedBatch.SellingPrice,
+                    SellingPrice = selectedBatch.SellingPrice,
+                    Series = selectedBatch.Series,
+                    ExpirationDate = selectedBatch.ExpirationDate,
+                    SourceBatchId = selectedBatch.Id,
+                    Notes = $"Списание",
+                    Sgtin = selectedSgtin.Sgtin
+                };
+
+                _documentItems.Add(documentLine);
+
+                // Сбрасываем форму
+                ResetItemForm();
+
+                UpdateDocumentTotals();
+                ShowInfo($"Товар '{selectedProduct.Name}' добавлен в акт списания с SGTIN: {selectedSgtin.Sgtin}");
+            }
+            catch (Exception ex)
+            {
+                ShowError("Ошибка добавления", ex.Message);
+            }
         }
-        catch (Exception ex)
+        else
         {
-            ShowError("Ошибка добавления", ex.Message);
+            // Для немаркированных товаров
+            if (cmbBatchSeries.SelectedItem == null)
+            {
+                ShowError("Ошибка", "Выберите партию для списания");
+                return;
+            }
+
+            if (!int.TryParse(txtQuantity.Text, out int quantity) || quantity <= 0)
+            {
+                ShowError("Ошибка", "Введите корректное количество");
+                return;
+            }
+
+            var selectedBatch = cmbBatchSeries.SelectedItem as Batch;
+            if (selectedBatch == null) return;
+
+            // Проверка доступного количества
+            if (quantity > selectedBatch.Quantity)
+            {
+                ShowError("Ошибка",
+                    $"Недостаточно товара в выбранной партии.\n" +
+                    $"Доступно: {selectedBatch.Quantity} шт.\n" +
+                    $"Пытаетесь списать: {quantity} шт.");
+                return;
+            }
+
+            try
+            {
+                var documentLine = new DocumentLine
+                {
+                    ProductId = selectedProduct.Id,
+                    Product = selectedProduct,
+                    Quantity = quantity,
+                    UnitPrice = selectedBatch.SellingPrice,
+                    SellingPrice = selectedBatch.SellingPrice,
+                    Series = selectedBatch.Series,
+                    ExpirationDate = selectedBatch.ExpirationDate,
+                    SourceBatchId = selectedBatch.Id,
+                    Notes = $"Списание",
+                };
+
+                _documentItems.Add(documentLine);
+
+                // Сбрасываем форму
+                ResetItemForm();
+
+                UpdateDocumentTotals();
+                ShowInfo($"Товар '{selectedProduct.Name}' добавлен в акт списания");
+            }
+            catch (Exception ex)
+            {
+                ShowError("Ошибка добавления", ex.Message);
+            }
         }
     }
 
@@ -414,6 +497,12 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
         cmbBatchSeries.SelectedItem = null;
         cmbBatchSeries.ItemsSource = null;
         txtQuantity.Text = "1";
+        txtQuantity.IsEnabled = true;
+        cmbBatchSeries.Visibility = Visibility.Visible;
+        lblSgtin.Visibility = Visibility.Collapsed;
+        cmbSgtin.Visibility = Visibility.Collapsed;
+        cmbSgtin.ItemsSource = null;
+        cmbSgtin.SelectedItem = null;
 
         // Сбрасываем информацию о товаре
         txtProductManufacturer.Text = "-";
@@ -454,8 +543,35 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
 
             txtCurrentPrice.Text = (latestBatch?.SellingPrice ?? 0m).ToString("N2");
 
-            // Загружаем доступные партии
-            LoadAvailableBatches(product.Id);
+            // Проверяем, маркирован ли товар
+            if (product.IsTracked)
+            {
+                // Для маркированных товаров: показываем SGTIN, скрываем и блокируем количество, скрываем cmbBatchSeries
+                lblSgtin.Visibility = Visibility.Visible;
+                cmbSgtin.Visibility = Visibility.Visible;
+                txtQuantity.Text = "1";
+                txtQuantity.IsEnabled = false;
+                cmbBatchSeries.Visibility = Visibility.Collapsed;
+
+                // Загружаем доступные SGTIN для этого товара (статус InCirculation)
+                var availableSgtins = _context.MdlpSgtins
+                    .Include(s => s.Batch)
+                    .Where(s => s.ProductId == product.Id && s.Status == "InCirculation")
+                    .ToList();
+                cmbSgtin.ItemsSource = availableSgtins;
+                cmbSgtin.SelectedItem = null;
+            }
+            else
+            {
+                // Для немаркированных: показываем количество и cmbBatchSeries, скрываем SGTIN
+                lblSgtin.Visibility = Visibility.Collapsed;
+                cmbSgtin.Visibility = Visibility.Collapsed;
+                txtQuantity.IsEnabled = true;
+                cmbBatchSeries.Visibility = Visibility.Visible;
+                cmbSgtin.ItemsSource = null;
+                // Загружаем доступные партии
+                LoadAvailableBatches(product.Id);
+            }
         }
         else
         {
@@ -537,7 +653,8 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
                     Series = item.Series,
                     ExpirationDate = item.ExpirationDate,
                     SourceBatchId = item.SourceBatchId,
-                    Notes = item.Notes
+                    Notes = item.Notes,
+                    Sgtin = item.Sgtin
                 };
 
                 // Если это редактирование существующей строки, сохраняем ID
@@ -563,7 +680,7 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
         }
     }
 
-    private void ProcessWriteOff_Click(object sender, RoutedEventArgs e)
+    private async void ProcessWriteOff_Click(object sender, RoutedEventArgs e)
     {
         if (!ValidateDocument())
             return;
@@ -609,7 +726,9 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
                         SellingPrice = item.SellingPrice,
                         Series = item.Series,
                         ExpirationDate = item.ExpirationDate,
-                        Notes = item.Notes
+                        SourceBatchId = item.SourceBatchId,
+                        Notes = item.Notes,
+                        Sgtin = item.Sgtin
                     };
                     documentLines.Add(line);
                 }
@@ -618,6 +737,7 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
                 if (_currentDocument.Id == 0) // Новый документ
                 {
                     documentId = _documentService.CreateWriteOff(_currentDocument, documentLines);
+                    _currentDocument.Id = documentId;
                 }
                 else // Редактирование существующего
                 {
@@ -626,7 +746,23 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
                     _currentDocument.Id = documentId;
                 }
 
-                ShowInfo($"Акт списания проведен успешно!\nНомер: {_currentDocument.Number}\nID: {documentId}");
+                // Проверяем, был ли документ уже отправлен в МДЛП
+                var existingMdlpDoc = await _context.MdlpDocuments
+                    .FirstOrDefaultAsync(d => d.DocumentId == _currentDocument.Id);
+
+                if (existingMdlpDoc != null)
+                {
+                    MessageBox.Show($"Документ уже отправлен в МДЛП.\nСтатус: {existingMdlpDoc.StatusText}",
+                        "Предупреждение", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    InitializeNewDocument();
+                    return;
+                }
+
+                // Вызываем МДЛП сервис
+                var mdlpResult = await _mdlpService.SendWriteOffAsync(_currentDocument);
+                string mdlpStatusText = mdlpResult.Status == "Accepted" ? "Принято" : "Ожидает обработки";
+
+                ShowInfo($"Акт списания проведен успешно!\nНомер: {_currentDocument.Number}\nID: {documentId}\nМДЛП: {mdlpStatusText} (ID: {mdlpResult.MdlpDocumentId})");
                 InitializeNewDocument();
             }
             catch (Exception ex)

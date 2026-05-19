@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -26,6 +26,9 @@ public partial class DocumentLine : ObservableObject
     private string? _oldValue;        
     private string? _newValue;        
     private string? _correctionNotes; 
+
+    // Для МДЛП
+    private string? _sgtin;
 
     public int Id
     {
@@ -118,6 +121,13 @@ public partial class DocumentLine : ObservableObject
     public virtual Product Product { get; set; } = null!;
     public virtual Batch? CreatedBatch { get; set; }
     public virtual Batch? SourceBatch { get; set; }
+
+    [NotMapped]
+    public string? Sgtin
+    {
+        get => _sgtin;
+        set => SetProperty(ref _sgtin, value);
+    }
 
     [NotMapped]
     public bool IsExpiringSoon

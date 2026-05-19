@@ -106,7 +106,9 @@ public partial class DocumentViewWindow : Window, INotifyPropertyChanged
                 var corrections = _documentService.GetDocumentCorrections(Document.Id);
                 if (corrections.Any())
                 {
-                    Document.Corrections = new ObservableCollection<Document>(corrections);
+                    Document.InverseOriginalDocument.Clear();
+                    foreach (var c in corrections)
+                        Document.InverseOriginalDocument.Add(c);
                 }
             }
         }

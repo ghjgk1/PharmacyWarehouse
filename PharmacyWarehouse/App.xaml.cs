@@ -1,7 +1,10 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.EntityFrameworkCore;
 using PharmacyWarehouse.Pages;
 using PharmacyWarehouse.Services;
+using PharmacyWarehouse.Services.Mdlp;
 using PharmacyWarehouse.Services.DocumentGeneration;
+using PharmacyWarehouse.Data;
 using System.IO;
 using System.Windows;
 using System.Windows.Threading;
@@ -19,6 +22,9 @@ namespace PharmacyWarehouse
         {
             var services = new ServiceCollection();
 
+            // Регистрируем контекст БД
+            services.AddDbContext<PharmacyWarehouseContext>(ServiceLifetime.Scoped);
+
             // Регистрируем сервисы
             services.AddSingleton<IWordDocumentGenerator, WordDocumentGenerator>();
 
@@ -28,6 +34,26 @@ namespace PharmacyWarehouse
             services.AddSingleton<BatchService>();
             services.AddSingleton<CategoryService>();
             services.AddSingleton<DocumentService>();
+            services.AddSingleton<MdlpXmlGenerator>();
+            services.AddSingleton<MdlpErrorGenerator>();
+            services.AddSingleton<MdlpStatusPoller>();
+
+            // Читаем настройки МДЛП для выбора реализации
+            using (var tempScope = services.BuildServiceProvider().CreateScope())
+            {
+                var tempContext = tempScope.ServiceProvider.GetRequiredService<PharmacyWarehouseContext>();
+                var settings = tempContext.MdlpSettings.FirstOrDefault();
+                bool useMock = settings == null || settings.UseMock;
+
+                if (useMock)
+                {
+                    services.AddScoped<IMdlpService, MdlpMockService>();
+                }
+                else
+                {
+                    services.AddScoped<IMdlpService, MdlpRealService>();
+                }
+            }
 
             // Регистрируем окна/страницы
             services.AddSingleton<MainWindow>();
@@ -39,8 +65,12 @@ namespace PharmacyWarehouse
             services.AddTransient<ReceiptPage>();
             services.AddTransient<SuppliersPage>();
             services.AddTransient<WriteOffPage>();
+            services.AddTransient<MdlpPage>();
 
             ServiceProvider = services.BuildServiceProvider();
+
+            var poller = ServiceProvider.GetService<MdlpStatusPoller>();
+            poller.Start();
 
             var loginWindow = new LoginWindow();
             loginWindow.Show();
@@ -52,6 +82,13 @@ namespace PharmacyWarehouse
 
             // Глобальная обработка исключений в любом потоке
             AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
+        }
+
+        protected override void OnExit(ExitEventArgs e)
+        {
+            var poller = ServiceProvider.GetService<MdlpStatusPoller>();
+            poller.Stop();
+            base.OnExit(e);
         }
 
         private void App_DispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)

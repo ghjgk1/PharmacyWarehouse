@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using PharmacyWarehouse.Data;
 using PharmacyWarehouse.Models;
@@ -79,46 +79,113 @@ public class DocumentService
             {
                 foreach (var line in lines)
                 {
-                    var batches = _db.Batches
-                        .Where(b => b.ProductId == line.ProductId &&
-                                   b.IsActive &&
-                                   b.Quantity > 0)
-                        .OrderBy(b => b.ExpirationDate)
-                        .ToList();
-
-                    if (batches.Sum(b => b.Quantity) < line.Quantity)
-                        throw new InvalidOperationException($"Недостаточно товара. Нужно: {line.Quantity}, есть: {batches.Sum(b => b.Quantity)}");
-
-                    int remaining = line.Quantity;
-
-                    foreach (var batch in batches)
+                    var product = _db.Products.FirstOrDefault(p => p.Id == line.ProductId);
+                    if (product != null && product.IsTracked)
                     {
-                        if (remaining <= 0) break;
+                        // Для маркированных товаров - используем Sgtin
+                        if (string.IsNullOrEmpty(line.Sgtin))
+                        {
+                            throw new InvalidOperationException($"Для товара '{product.Name}' необходимо указать код маркировки (SGTIN)");
+                        }
 
-                        int toTake = Math.Min(batch.Quantity, remaining);
+                        var sgtin = _db.MdlpSgtins.FirstOrDefault(s => s.Sgtin == line.Sgtin);
+                        if (sgtin == null)
+                        {
+                            throw new InvalidOperationException($"Код маркировки '{line.Sgtin}' не найден");
+                        }
 
-                        // СОЗДАЕМ СТРОКУ ДОКУМЕНТА с данными из партии
+                        if (sgtin.Status != "InCirculation")
+                        {
+                            throw new InvalidOperationException($"Код маркировки '{line.Sgtin}' имеет неверный статус: {sgtin.Status}");
+                        }
+
+                        if (sgtin.BatchId == null)
+                        {
+                            throw new InvalidOperationException($"Код маркировки '{line.Sgtin}' не привязан к партии");
+                        }
+
+                        var batch = _db.Batches.FirstOrDefault(b => b.Id == sgtin.BatchId);
+                        if (batch == null)
+                        {
+                            throw new InvalidOperationException($"Партия для кода маркировки '{line.Sgtin}' не найдена");
+                        }
+
+                        if (batch.Quantity < 1)
+                        {
+                            throw new InvalidOperationException($"Недостаточно товара в партии");
+                        }
+
+                        // Создаем строку документа
                         var batchLine = new DocumentLine
                         {
                             DocumentId = document.Id,
                             ProductId = line.ProductId,
-                            Quantity = toTake,
-                            UnitPrice = batch.SellingPrice, 
-                            SellingPrice = batch.SellingPrice, 
-                            Series = batch.Series, 
+                            Quantity = 1,
+                            UnitPrice = batch.SellingPrice,
+                            SellingPrice = batch.SellingPrice,
+                            Series = batch.Series,
                             ExpirationDate = batch.ExpirationDate,
                             SourceBatchId = batch.Id,
-                            Notes = line.Notes
+                            Notes = line.Notes,
+                            Sgtin = line.Sgtin
                         };
 
                         _db.DocumentLines.Add(batchLine);
 
                         // Уменьшаем количество в партии
-                        batch.Quantity -= toTake;
+                        batch.Quantity -= 1;
                         if (batch.Quantity == 0)
                             batch.IsActive = false;
 
-                        remaining -= toTake;
+                        // Обновляем статус SGTIN
+                        sgtin.PreviousStatus = sgtin.Status;
+                        sgtin.Status = "Shipped";
+                        sgtin.StatusChangedAt = DateTime.Now;
+                    }
+                    else
+                    {
+                        // Для немаркированных товаров - как раньше
+                        var batches = _db.Batches
+                            .Where(b => b.ProductId == line.ProductId &&
+                                       b.IsActive &&
+                                       b.Quantity > 0)
+                            .OrderBy(b => b.ExpirationDate)
+                            .ToList();
+
+                        if (batches.Sum(b => b.Quantity) < line.Quantity)
+                            throw new InvalidOperationException($"Недостаточно товара. Нужно: {line.Quantity}, есть: {batches.Sum(b => b.Quantity)}");
+
+                        int remaining = line.Quantity;
+
+                        foreach (var batch in batches)
+                        {
+                            if (remaining <= 0) break;
+
+                            int toTake = Math.Min(batch.Quantity, remaining);
+
+                            // СОЗДАЕМ СТРОКУ ДОКУМЕНТА с данными из партии
+                            var batchLine = new DocumentLine
+                            {
+                                DocumentId = document.Id,
+                                ProductId = line.ProductId,
+                                Quantity = toTake,
+                                UnitPrice = batch.SellingPrice, 
+                                SellingPrice = batch.SellingPrice, 
+                                Series = batch.Series, 
+                                ExpirationDate = batch.ExpirationDate,
+                                SourceBatchId = batch.Id,
+                                Notes = line.Notes
+                            };
+
+                            _db.DocumentLines.Add(batchLine);
+
+                            // Уменьшаем количество в партии
+                            batch.Quantity -= toTake;
+                            if (batch.Quantity == 0)
+                                batch.IsActive = false;
+
+                            remaining -= toTake;
+                        }
                     }
                 }
 
@@ -197,7 +264,7 @@ public class DocumentService
                 .ThenInclude(l => l.SourceBatch)
             .Include(d => d.Supplier)
             .Include(d => d.OriginalDocument)
-            .Include(d => d.Corrections)
+            .Include(d => d.InverseOriginalDocument)
             .FirstOrDefault(d => d.Id == documentId);
     }
 
@@ -257,48 +324,118 @@ public class DocumentService
             {
                 foreach (var line in lines)
                 {
-                    var batches = _db.Batches
-                        .Where(b => b.ProductId == line.ProductId &&
-                                   b.IsActive &&
-                                   b.Quantity > 0)
-                        .OrderBy(b => b.ExpirationDate)
-                        .ToList();
-
-                    if (batches.Sum(b => b.Quantity) < line.Quantity)
-                        throw new InvalidOperationException($"Недостаточно товара. Нужно: {line.Quantity}, есть: {batches.Sum(b => b.Quantity)}");
-
-                    int remaining = line.Quantity;
-
-                    foreach (var batch in batches)
+                    var product = _db.Products.FirstOrDefault(p => p.Id == line.ProductId);
+                    if (product != null && product.IsTracked)
                     {
-                        if (remaining <= 0) break;
+                        // Для маркированных товаров - используем Sgtin
+                        if (string.IsNullOrEmpty(line.Sgtin))
+                        {
+                            throw new InvalidOperationException($"Для товара '{product.Name}' необходимо указать код маркировки (SGTIN)");
+                        }
 
-                        int toTake = Math.Min(batch.Quantity, remaining);
+                        var sgtin = _db.MdlpSgtins.FirstOrDefault(s => s.Sgtin == line.Sgtin);
+                        if (sgtin == null)
+                        {
+                            throw new InvalidOperationException($"Код маркировки '{line.Sgtin}' не найден");
+                        }
 
-                        // Рассчитываем сумму для этой строки
-                        decimal lineAmount = batch.SellingPrice * toTake;
-                        totalAmount += lineAmount;
+                        if (sgtin.Status != "InCirculation")
+                        {
+                            throw new InvalidOperationException($"Код маркировки '{line.Sgtin}' имеет неверный статус: {sgtin.Status}");
+                        }
 
+                        if (sgtin.BatchId == null)
+                        {
+                            throw new InvalidOperationException($"Код маркировки '{line.Sgtin}' не привязан к партии");
+                        }
+
+                        var batch = _db.Batches.FirstOrDefault(b => b.Id == sgtin.BatchId);
+                        if (batch == null)
+                        {
+                            throw new InvalidOperationException($"Партия для кода маркировки '{line.Sgtin}' не найдена");
+                        }
+
+                        if (batch.Quantity < 1)
+                        {
+                            throw new InvalidOperationException($"Недостаточно товара в партии");
+                        }
+
+                        // Создаем строку документа
                         var batchLine = new DocumentLine
                         {
                             DocumentId = document.Id,
                             ProductId = line.ProductId,
-                            Quantity = toTake,
+                            Quantity = 1,
                             UnitPrice = batch.SellingPrice,
                             SellingPrice = batch.SellingPrice,
                             Series = batch.Series,
                             ExpirationDate = batch.ExpirationDate,
                             SourceBatchId = batch.Id,
-                            Notes = line.Notes
+                            Notes = line.Notes,
+                            Sgtin = line.Sgtin
                         };
 
                         _db.DocumentLines.Add(batchLine);
 
-                        batch.Quantity -= toTake;
+                        // Уменьшаем количество в партии
+                        batch.Quantity -= 1;
                         if (batch.Quantity == 0)
                             batch.IsActive = false;
 
-                        remaining -= toTake;
+                        // Обновляем статус SGTIN
+                        sgtin.PreviousStatus = sgtin.Status;
+                        sgtin.Status = "Withdrawn";
+                        sgtin.StatusChangedAt = DateTime.Now;
+
+                        // Добавляем сумму
+                        totalAmount += batch.SellingPrice * 1;
+                    }
+                    else
+                    {
+                        // Для немаркированных товаров - как раньше
+                        var batches = _db.Batches
+                            .Where(b => b.ProductId == line.ProductId &&
+                                       b.IsActive &&
+                                       b.Quantity > 0)
+                            .OrderBy(b => b.ExpirationDate)
+                            .ToList();
+
+                        if (batches.Sum(b => b.Quantity) < line.Quantity)
+                            throw new InvalidOperationException($"Недостаточно товара. Нужно: {line.Quantity}, есть: {batches.Sum(b => b.Quantity)}");
+
+                        int remaining = line.Quantity;
+
+                        foreach (var batch in batches)
+                        {
+                            if (remaining <= 0) break;
+
+                            int toTake = Math.Min(batch.Quantity, remaining);
+
+                            // Рассчитываем сумму для этой строки
+                            decimal lineAmount = batch.SellingPrice * toTake;
+                            totalAmount += lineAmount;
+
+                            var batchLine = new DocumentLine
+                            {
+                                DocumentId = document.Id,
+                                ProductId = line.ProductId,
+                                Quantity = toTake,
+                                UnitPrice = batch.SellingPrice,
+                                SellingPrice = batch.SellingPrice,
+                                Series = batch.Series,
+                                ExpirationDate = batch.ExpirationDate,
+                                SourceBatchId = batch.Id,
+                                Notes = line.Notes
+                            };
+
+                            _db.DocumentLines.Add(batchLine);
+
+                            batch.Quantity -= toTake;
+                            if (batch.Quantity == 0)
+                                batch.IsActive = false;
+
+                            remaining -= toTake;
+                        }
                     }
                 }
 
@@ -491,7 +628,7 @@ public class DocumentService
             return null;
 
         // Явно загружаем корректировки отдельным запросом
-        _db.Entry(document).Collection(d => d.Corrections).Query()
+        _db.Entry(document).Collection(d => d.InverseOriginalDocument).Query()
             .Include(c => c.DocumentLines)
                 .ThenInclude(l => l.Product)
             .Load();
@@ -541,7 +678,7 @@ public class DocumentService
             .Include(d => d.DocumentLines)
                 .ThenInclude(dl => dl.SourceBatch)
             .Include(d => d.OriginalDocument)
-            .Include(d => d.Corrections)
+            .Include(d => d.InverseOriginalDocument)
             .OrderByDescending(d => d.Date)
             .ToList();
 
@@ -634,6 +771,22 @@ public class DocumentService
                     _db.SaveChanges();
 
                     line.CreatedBatchId = batch.Id;
+
+                    if (!string.IsNullOrEmpty(line.Sgtin))
+                    {
+                        var mdlpSgtin = new MdlpSgtin
+                        {
+                            Sgtin = line.Sgtin,
+                            Gtin = line.Sgtin.Substring(0, 14),
+                            SerialNumber = line.Sgtin.Substring(14),
+                            ProductId = line.ProductId,
+                            BatchId = batch.Id,
+                            Status = "InCirculation",
+                            CreatedAt = DateTime.Now
+                        };
+                        _db.MdlpSgtins.Add(mdlpSgtin);
+                        _db.SaveChanges();
+                    }
                 }
 
                 _db.DocumentLines.Add(line);

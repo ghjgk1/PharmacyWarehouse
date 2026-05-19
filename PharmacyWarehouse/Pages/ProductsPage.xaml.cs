@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using PharmacyWarehouse.Models;
 using PharmacyWarehouse.Services;
 using PharmacyWarehouse.Windows;
@@ -109,6 +109,16 @@ namespace PharmacyWarehouse.Pages
                     break;
                 case 2:
                     if (product.RequiresPrescription == true) return false;
+                    break;
+            }
+
+            switch (cmbMdlp.SelectedIndex)
+            {
+                case 1:
+                    if (!product.IsTracked) return false;
+                    break;
+                case 2:
+                    if (product.IsTracked) return false;
                     break;
             }
 
@@ -475,6 +485,11 @@ namespace PharmacyWarehouse.Pages
             ApplyFilters();
         }
 
+        private void CmbMdlp_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            ApplyFilters();
+        }
+
         private void CmbAvailability_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             ApplyFilters();
@@ -571,6 +586,7 @@ namespace PharmacyWarehouse.Pages
             SearchTextBox.Text = string.Empty;
             cmbCategory.SelectedIndex = 0;
             cmbPrescription.SelectedIndex = 0;
+            cmbMdlp.SelectedIndex = 0;
             cmbAvailability.SelectedIndex = 0;
             chkShowArchived.IsChecked = false;
             chkExpiringSoon.IsChecked = false;
@@ -596,6 +612,7 @@ namespace PharmacyWarehouse.Pages
                 int outOfStock = filteredProducts.Count(p => p.IsOutOfStock);
                 int expiring = filteredProducts.Count(p => p.HasExpiringBatches);
                 int expired = filteredProducts.Count(p => p.HasExpiredBatches);
+                int tracked = filteredProducts.Count(p => p.IsTracked);
 
                 txtTotalCount.Text = $"Всего: {total}";
                 txtFilteredCount.Text = $"Найдено: {total}";
@@ -604,6 +621,7 @@ namespace PharmacyWarehouse.Pages
                 txtOutOfStockCount.Text = $"Нет в наличии: {outOfStock}";
                 txtExpiringCount.Text = $"Истекает срок: {expiring}";
                 txtExpiredCount.Text = $"Просрочено: {expired}";
+                txtTrackedCount.Text = $"Маркированные: {tracked}";
 
             }
             catch (Exception ex)

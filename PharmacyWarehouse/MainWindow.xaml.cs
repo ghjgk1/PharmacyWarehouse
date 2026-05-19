@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using PharmacyWarehouse.Models;
 using PharmacyWarehouse.Pages;
 using PharmacyWarehouse.Services;
@@ -52,6 +52,7 @@ namespace PharmacyWarehouse
             // Администрирование
             AdminHeader.Visibility = isAdmin ? Visibility.Visible : Visibility.Collapsed;
             NavManageUsersBtn.Visibility = isAdmin ? Visibility.Visible : Visibility.Collapsed;
+            NavMdlpBtn.Visibility = isAdmin ? Visibility.Visible : Visibility.Collapsed;
         }
 
 
@@ -174,6 +175,12 @@ namespace PharmacyWarehouse
         private void Categories_Click(object sender, RoutedEventArgs e)
         {
             var page = _serviceProvider.GetService<CategoriesPage>();
+            MainFrame.Navigate(page);
+        }
+
+        private void Mdlp_Click(object sender, RoutedEventArgs e)
+        {
+            var page = _serviceProvider.GetService<MdlpPage>();
             MainFrame.Navigate(page);
         }
 

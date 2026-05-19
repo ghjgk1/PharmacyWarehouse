@@ -1,7 +1,10 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using PharmacyWarehouse;
+using PharmacyWarehouse.Data;
 using PharmacyWarehouse.Models;
 using PharmacyWarehouse.Services;
+using PharmacyWarehouse.Services.Mdlp;
 using PharmacyWarehouse.Windows;
 using System;
 using System.Collections.Generic;
@@ -23,6 +26,8 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
     private readonly ProductService _productService;
     private readonly SupplierService _supplierService; 
     private readonly AuthService _authService;
+    private readonly IMdlpService _mdlpService;
+    private readonly PharmacyWarehouseContext _context;
 
 
     private Document _currentDocument;
@@ -49,6 +54,8 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
         _productService = App.ServiceProvider.GetService<ProductService>();
         _supplierService = App.ServiceProvider.GetService<SupplierService>();
         _authService = App.ServiceProvider.GetService<AuthService>();
+        _mdlpService = App.ServiceProvider.GetService<IMdlpService>();
+        _context = new PharmacyWarehouseContext();
 
         _currentUser = AuthService.CurrentUser?.FullName ?? "Неизвестный пользователь";
         dpExpirationDate.DisplayDateStart = DateTime.Now;
@@ -106,12 +113,15 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
         dpDocDate.SelectedDate = _currentDocument.Date;
         dpInvoiceDate.SelectedDate = DateTime.Now;
 
+        btnProcessDocument.IsEnabled = true;
+        txtAlreadySentHint.Visibility = Visibility.Collapsed;
+
         _documentItems.Clear();
         UpdateDocumentTotals();
         UpdateSelectedItemInfo();
     }
 
-    private void LoadDraft(int documentId)
+    private async void LoadDraft(int documentId)
     {
         try
         {
@@ -120,6 +130,22 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
                 return;
 
             _currentDocument = draft;
+
+            // Проверяем, был ли документ уже отправлен в МДЛП
+            var existingMdlpDoc = await _context.MdlpDocuments
+                .FirstOrDefaultAsync(d => d.DocumentId == _currentDocument.Id);
+
+            if (existingMdlpDoc != null)
+            {
+                btnProcessDocument.IsEnabled = false;
+                txtAlreadySentHint.Visibility = Visibility.Visible;
+                txtAlreadySentHint.Text = $"Документ уже отправлен в МДЛП (статус: {existingMdlpDoc.StatusText})";
+            }
+            else
+            {
+                btnProcessDocument.IsEnabled = true;
+                txtAlreadySentHint.Visibility = Visibility.Collapsed;
+            }
 
             // Заполняем поля формы
             txtDocNumber.Text = draft.Number;
@@ -224,10 +250,66 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
             return;
         }
 
-        if (!int.TryParse(txtQuantity.Text, out int quantity) || quantity <= 0)
+        var selectedProduct = cmbProduct.SelectedItem as Product;
+        if (selectedProduct == null) return;
+
+        if (selectedProduct.IsTracked)
         {
-            ShowError("Ошибка", "Введите корректное количество");
-            return;
+            // Валидация SGTIN для маркированных товаров
+            var sgtin = txtSgtin.Text.Trim();
+            if (string.IsNullOrWhiteSpace(sgtin))
+            {
+                ShowError("Ошибка", "Введите код маркировки (SGTIN)");
+                return;
+            }
+
+            if (sgtin.Length != 27)
+            {
+                ShowError("Ошибка", "Длина SGTIN должна быть 27 символов");
+                return;
+            }
+
+            if (selectedProduct.Gtin != null && sgtin.Substring(0, 14) != selectedProduct.Gtin)
+            {
+                ShowError("Ошибка", $"Первые 14 символов должны совпадать с GTIN товара ({selectedProduct.Gtin})");
+                return;
+            }
+
+            // Проверка дубликата
+            var existingSgtin = _context.MdlpSgtins.FirstOrDefault(s => s.Sgtin == sgtin);
+            if (existingSgtin != null)
+            {
+                ShowError("Ошибка", "Такой код маркировки уже существует");
+                return;
+            }
+
+            // Проверка дубликата в текущем документе
+            var inCurrentDoc = _documentItems.Any(item => item.Sgtin == sgtin);
+            if (inCurrentDoc)
+            {
+                ShowError("Ошибка", "Этот код маркировки уже добавлен в документ");
+                return;
+            }
+        }
+        else
+        {
+            if (!int.TryParse(txtQuantity.Text, out int quantity) || quantity <= 0)
+            {
+                ShowError("Ошибка", "Введите корректное количество");
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(txtSeries.Text))
+            {
+                ShowError("Ошибка", "Введите серию товара");
+                return;
+            }
+
+            if (!dpExpirationDate.SelectedDate.HasValue)
+            {
+                ShowError("Ошибка", "Выберите срок годности");
+                return;
+            }
         }
 
         if (!decimal.TryParse(txtPurchasePrice.Text, out decimal price) || price <= 0)
@@ -236,33 +318,19 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(txtSeries.Text))
-        {
-            ShowError("Ошибка", "Введите серию товара");
-            return;
-        }
-
-        if (!dpExpirationDate.SelectedDate.HasValue)
-        {
-            ShowError("Ошибка", "Выберите срок годности");
-            return;
-        }
-
-        var selectedProduct = cmbProduct.SelectedItem as Product;
-        if (selectedProduct == null) return;
-
         try
         {
             var documentLine = new DocumentLine
             {
                 ProductId = selectedProduct.Id,
                 Product = selectedProduct, 
-                Quantity = quantity,
+                Quantity = selectedProduct.IsTracked ? 1 : int.Parse(txtQuantity.Text),
                 UnitPrice = price,
                 SellingPrice = price * 1.3m, 
                 Series = txtSeries.Text.Trim(),
                 ExpirationDate = DateOnly.FromDateTime(dpExpirationDate.SelectedDate.Value),
-                Notes = $"Поступление от поставщика"
+                Notes = $"Поступление от поставщика",
+                Sgtin = selectedProduct.IsTracked ? txtSgtin.Text.Trim() : null
             };
 
             _documentItems.Add(documentLine);
@@ -272,6 +340,7 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
             txtSeries.Text = "";
             dpExpirationDate.SelectedDate = null;
             cmbProduct.SelectedItem = null;
+            txtSgtin.Text = "";
 
             UpdateDocumentTotals();
             UpdateLineTotal();
@@ -432,7 +501,7 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
         }
     }
 
-    private void ProcessDocument_Click(object sender, RoutedEventArgs e)
+    private async void ProcessDocument_Click(object sender, RoutedEventArgs e)
     {
         if (!ValidateDocument())
             return;
@@ -487,6 +556,7 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
                 if (_currentDocument.Id == 0) // Новый документ
                 {
                     documentId = _documentService.CreateIncomingDocument(_currentDocument, linesForDb);
+                    _currentDocument.Id = documentId;
                 }
                 else // Редактирование существующего
                 {
@@ -494,7 +564,23 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
                     documentId = _currentDocument.Id;
                 }
 
-                ShowInfo($"Документ проведен успешно!\nНомер: {_currentDocument.Number}\nID: {documentId}");
+                // Проверяем, был ли документ уже отправлен в МДЛП
+                var existingMdlpDoc = await _context.MdlpDocuments
+                    .FirstOrDefaultAsync(d => d.DocumentId == _currentDocument.Id);
+
+                if (existingMdlpDoc != null)
+                {
+                    MessageBox.Show($"Документ уже отправлен в МДЛП.\nСтатус: {existingMdlpDoc.StatusText}",
+                        "Предупреждение", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    InitializeNewDocument();
+                    return;
+                }
+
+                // Вызываем МДЛП сервис
+                var mdlpResult = await _mdlpService.SendReceiptAsync(_currentDocument);
+                string mdlpStatusText = mdlpResult.Status == "Accepted" ? "Принято" : "Ожидает обработки";
+
+                ShowInfo($"Документ проведен успешно!\nНомер: {_currentDocument.Number}\nID: {documentId}\nМДЛП: {mdlpStatusText} (ID: {mdlpResult.MdlpDocumentId})");
                 InitializeNewDocument();
             }
             catch (Exception ex)
@@ -587,6 +673,24 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
                 txtPurchasePrice.Text = lastPurchasePrice.ToString("N2");
             }
 
+            // Показываем/скрываем поля для маркированного товара
+            if (product.IsTracked)
+            {
+                lblQuantity.Visibility = Visibility.Collapsed;
+                txtQuantity.Visibility = Visibility.Collapsed;
+                lblSgtin.Visibility = Visibility.Visible;
+                txtSgtin.Visibility = Visibility.Visible;
+                txtQuantity.Text = "1";
+            }
+            else
+            {
+                lblQuantity.Visibility = Visibility.Visible;
+                txtQuantity.Visibility = Visibility.Visible;
+                lblSgtin.Visibility = Visibility.Collapsed;
+                txtSgtin.Visibility = Visibility.Collapsed;
+                txtSgtin.Text = "";
+            }
+
             UpdateLineTotal();
         }
     }
@@ -619,6 +723,42 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
     {
         if (_isPageLoaded)
             UpdateLineTotal();
+    }
+
+    private void TxtSgtin_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (!_isPageLoaded)
+            return;
+
+        if (cmbProduct.SelectedItem is not Product product || !product.IsTracked)
+            return;
+
+        var sgtin = txtSgtin.Text;
+        if (string.IsNullOrWhiteSpace(sgtin))
+        {
+            txtSgtin.ToolTip = "";
+            txtSgtin.ClearValue(TextBox.BorderBrushProperty);
+            return;
+        }
+
+        // Проверка длины
+        if (sgtin.Length != 27)
+        {
+            txtSgtin.ToolTip = "Длина SGTIN должна быть 27 символов";
+            txtSgtin.BorderBrush = System.Windows.Media.Brushes.Red;
+            return;
+        }
+
+        // Проверка GTIN
+        if (product.Gtin != null && sgtin.Substring(0, 14) != product.Gtin)
+        {
+            txtSgtin.ToolTip = $"Первые 14 символов должны совпадать с GTIN товара ({product.Gtin})";
+            txtSgtin.BorderBrush = System.Windows.Media.Brushes.Red;
+            return;
+        }
+
+        txtSgtin.ToolTip = "";
+        txtSgtin.ClearValue(TextBox.BorderBrushProperty);
     }
 
     #endregion

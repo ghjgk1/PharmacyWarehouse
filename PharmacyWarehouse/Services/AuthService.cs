@@ -50,7 +50,7 @@ public class AuthService
         var context = BaseDbService.Instance.Context;
         var passwordHash = HashPassword(password);
 
-        var user = context.Users
+            var user = context.Users
             .FirstOrDefault(u => u.Login == login &&
                                 u.PasswordHash == passwordHash &&
                                 u.IsActive);

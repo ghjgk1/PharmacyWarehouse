@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Collections.ObjectModel;
@@ -229,6 +229,10 @@ public partial class Document : ObservableObject
 
     public virtual ICollection<DocumentLine> DocumentLines { get; set; } = new ObservableCollection<DocumentLine>();
     public virtual Supplier? Supplier { get; set; }
-    public virtual ICollection<Document> Corrections { get; set; } = new ObservableCollection<Document>();
+    [NotMapped]
+    public ICollection<Document> Corrections => InverseOriginalDocument;
+    public virtual ICollection<Document> InverseOriginalDocument { get; set; } = new ObservableCollection<Document>();
     public virtual ICollection<Batch> Batches { get; set; } = new ObservableCollection<Batch>();
+    public virtual ICollection<MdlpDocument> MdlpDocuments { get; set; } = new ObservableCollection<MdlpDocument>();
+    public virtual ICollection<BatchCorrectionLog> BatchCorrectionLogs { get; set; } = new ObservableCollection<BatchCorrectionLog>();
 }

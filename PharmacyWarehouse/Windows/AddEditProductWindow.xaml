@@ -1,4 +1,4 @@
-﻿<Window x:Class="PharmacyWarehouse.Windows.AddEditProductWindow"
+<Window x:Class="PharmacyWarehouse.Windows.AddEditProductWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -9,6 +9,9 @@
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         Background="{StaticResource BackgroundDarkBrush}">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="booleanToVisibilityConverter"/>
+    </Window.Resources>
 
     <Grid Margin="0">
         <Grid.RowDefinitions>
@@ -104,6 +107,21 @@
                          Margin="0,0,0,16"
                          FontSize="14"
                          Foreground="{StaticResource TextDarkBrush}"/>
+                
+                <!-- МДЛП -->
+                <CheckBox Content="Подлежит маркировке МДЛП" 
+                         IsChecked="{Binding Product.IsTracked}"
+                         Margin="0,0,0,8"
+                         FontSize="14"
+                         Foreground="{StaticResource TextDarkBrush}"/>
+                <StackPanel Margin="0,0,0,16" Visibility="{Binding Product.IsTracked, Converter={StaticResource booleanToVisibilityConverter}}">
+                    <TextBlock Text="GTIN (14 цифр)" 
+                              Style="{StaticResource H3}"
+                              Margin="0,0,0,4"/>
+                    <TextBox Text="{Binding Product.Gtin, UpdateSourceTrigger=PropertyChanged}"
+                            MaxLength="14"
+                            Height="40"/>
+                </StackPanel>
 
                 <!-- Описание -->
                 <StackPanel Margin="0,0,0,8">

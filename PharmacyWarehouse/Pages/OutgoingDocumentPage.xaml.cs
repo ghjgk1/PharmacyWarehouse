@@ -1,7 +1,10 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using PharmacyWarehouse;
+using PharmacyWarehouse.Data;
 using PharmacyWarehouse.Models;
 using PharmacyWarehouse.Services;
+using PharmacyWarehouse.Services.Mdlp;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -21,6 +24,8 @@ public partial class OutgoingPage : Page, INotifyPropertyChanged
     private readonly ProductService _productService;
     private readonly BatchService _batchService;
     private readonly AuthService _authService;
+    private readonly IMdlpService _mdlpService;
+    private readonly PharmacyWarehouseContext _context = BaseDbService.Instance.Context;
 
     private Document _currentDocument;
     private ObservableCollection<DocumentLine> _documentItems;
@@ -45,6 +50,7 @@ public partial class OutgoingPage : Page, INotifyPropertyChanged
         _productService = App.ServiceProvider.GetService<ProductService>();
         _batchService = App.ServiceProvider.GetService<BatchService>();
         _authService = App.ServiceProvider.GetService<AuthService>();
+        _mdlpService = App.ServiceProvider.GetService<IMdlpService>();
 
         _currentUser = AuthService.CurrentUser?.FullName ?? "Неизвестный пользователь";
 
@@ -135,6 +141,9 @@ public partial class OutgoingPage : Page, INotifyPropertyChanged
         txtDocNumber.Text = _currentDocument.Number;
         dpDocDate.SelectedDate = _currentDocument.Date;
 
+        btnProcessDocument.IsEnabled = true;
+        txtAlreadySentHint.Visibility = Visibility.Collapsed;
+
         _documentItems.Clear();
         customerInfoPanel.Visibility = Visibility.Collapsed;
         _hasPrescriptionItems = false;
@@ -143,7 +152,7 @@ public partial class OutgoingPage : Page, INotifyPropertyChanged
         UpdateLineTotal();
     }
 
-    private void LoadDraft(int documentId)
+    private async void LoadDraft(int documentId)
     {
         try
         {
@@ -152,6 +161,22 @@ public partial class OutgoingPage : Page, INotifyPropertyChanged
                 return;
 
             _currentDocument = draft;
+
+            // Проверяем, был ли документ уже отправлен в МДЛП
+            var existingMdlpDoc = await _context.MdlpDocuments
+                .FirstOrDefaultAsync(d => d.DocumentId == _currentDocument.Id);
+
+            if (existingMdlpDoc != null)
+            {
+                btnProcessDocument.IsEnabled = false;
+                txtAlreadySentHint.Visibility = Visibility.Visible;
+                txtAlreadySentHint.Text = $"Документ уже отправлен в МДЛП (статус: {existingMdlpDoc.StatusText})";
+            }
+            else
+            {
+                btnProcessDocument.IsEnabled = true;
+                txtAlreadySentHint.Visibility = Visibility.Collapsed;
+            }
 
             // Заполняем поля формы
             txtDocNumber.Text = draft.Number;
@@ -200,74 +225,136 @@ public partial class OutgoingPage : Page, INotifyPropertyChanged
             return;
         }
 
-        if (!int.TryParse(txtQuantity.Text, out int quantity) || quantity <= 0)
-        {
-            ShowError("Ошибка", "Введите корректное количество");
-            return;
-        }
-
         var selectedProduct = cmbProduct.SelectedItem as Product;
         if (selectedProduct == null) return;
 
-        // Проверка доступного количества
-        var availableBatches = _batchService.GetByProduct(selectedProduct.Id)
-        .Where(b => b.IsActive && b.Quantity > 0)
-        .OrderBy(b => b.ExpirationDate)
-        .ToList();
-
-        var totalAvailable = availableBatches.Sum(b => b.Quantity);
-
-        // Учитываем уже добавленные в документ количества
-        var alreadyAdded = _documentItems
-            .Where(item => item.ProductId == selectedProduct.Id)
-            .Sum(item => item.Quantity);
-
-        var totalNeeded = alreadyAdded + quantity;
-
-        if (totalNeeded > totalAvailable)
+        // Валидация для маркированных товаров
+        if (selectedProduct.IsTracked)
         {
-            ShowError("Ошибка",
-                $"Недостаточно товара на складе.\n" +
-                $"Доступно: {totalAvailable - alreadyAdded} шт.\n" +
-                $"Уже добавлено: {alreadyAdded} шт.\n" +
-                $"Нужно еще: {quantity} шт.\n" +
-                $"Всего требуется: {totalNeeded} шт.");
-            return;
-        }
-
-        try
-        {
-            var earliestBatch = availableBatches.FirstOrDefault();
-            var sellingPrice = earliestBatch?.SellingPrice ?? 0m;
-
-            var documentLine = new DocumentLine
+            if (cmbSgtin.SelectedItem is not MdlpSgtin selectedSgtin)
             {
-                ProductId = selectedProduct.Id,
-                Product = selectedProduct,
-                Quantity = quantity,
-                UnitPrice = sellingPrice,
-                SellingPrice = sellingPrice,
-                Notes = $"Отпуск покупателю"
-            };
+                ShowError("Ошибка", "Выберите код маркировки (SGTIN)");
+                return;
+            }
 
-            _documentItems.Add(documentLine);
+            // Проверяем, не использован ли уже этот SGTIN в документе
+            var existingInDoc = _documentItems.Any(item => item.Sgtin == selectedSgtin.Sgtin);
+            if (existingInDoc)
+            {
+                ShowError("Ошибка", "Этот код маркировки уже добавлен в документ");
+                return;
+            }
 
-            // Сбрасываем форму
-            txtQuantity.Text = "1";
-            cmbProduct.SelectedItem = null;
-            txtSellingPrice.Text = "0.00";
+            try
+            {
+                var earliestBatch = _batchService.GetByProduct(selectedProduct.Id)
+                    .Where(b => b.IsActive && b.Quantity > 0)
+                    .OrderBy(b => b.ExpirationDate)
+                    .FirstOrDefault();
+                var sellingPrice = earliestBatch?.SellingPrice ?? 0m;
 
-            CheckPrescriptionItems();
+                var documentLine = new DocumentLine
+                {
+                    ProductId = selectedProduct.Id,
+                    Product = selectedProduct,
+                    Quantity = 1,
+                    UnitPrice = sellingPrice,
+                    SellingPrice = sellingPrice,
+                    Notes = $"Отпуск покупателю",
+                    Sgtin = selectedSgtin.Sgtin
+                };
 
-            UpdateDocumentTotals();
-            UpdateLineTotal();
-            ShowInfo($"Товар '{selectedProduct.Name}' добавлен");
+                _documentItems.Add(documentLine);
+
+                // Сбрасываем форму
+                txtQuantity.Text = "1";
+                cmbProduct.SelectedItem = null;
+                cmbSgtin.SelectedItem = null;
+                txtSellingPrice.Text = "0.00";
+                lblSgtin.Visibility = Visibility.Collapsed;
+                cmbSgtin.Visibility = Visibility.Collapsed;
+                txtQuantity.IsEnabled = true;
+                cmbSgtin.ItemsSource = null;
+
+                CheckPrescriptionItems();
+
+                UpdateDocumentTotals();
+                UpdateLineTotal();
+                ShowInfo($"Товар '{selectedProduct.Name}' добавлен с SGTIN: {selectedSgtin.Sgtin}");
+            }
+            catch (Exception ex)
+            {
+                ShowError("Ошибка добавления", ex.Message);
+            }
         }
-        catch (Exception ex)
+        else
         {
-            ShowError("Ошибка добавления", ex.Message);
-        }
+            // Для немаркированных товаров
+            if (!int.TryParse(txtQuantity.Text, out int quantity) || quantity <= 0)
+            {
+                ShowError("Ошибка", "Введите корректное количество");
+                return;
+            }
 
+            // Проверка доступного количества
+            var availableBatches = _batchService.GetByProduct(selectedProduct.Id)
+            .Where(b => b.IsActive && b.Quantity > 0)
+            .OrderBy(b => b.ExpirationDate)
+            .ToList();
+
+            var totalAvailable = availableBatches.Sum(b => b.Quantity);
+
+            // Учитываем уже добавленные в документ количества
+            var alreadyAdded = _documentItems
+                .Where(item => item.ProductId == selectedProduct.Id)
+                .Sum(item => item.Quantity);
+
+            var totalNeeded = alreadyAdded + quantity;
+
+            if (totalNeeded > totalAvailable)
+            {
+                ShowError("Ошибка",
+                    $"Недостаточно товара на складе.\n" +
+                    $"Доступно: {totalAvailable - alreadyAdded} шт.\n" +
+                    $"Уже добавлено: {alreadyAdded} шт.\n" +
+                    $"Нужно еще: {quantity} шт.\n" +
+                    $"Всего требуется: {totalNeeded} шт.");
+                return;
+            }
+
+            try
+            {
+                var earliestBatch = availableBatches.FirstOrDefault();
+                var sellingPrice = earliestBatch?.SellingPrice ?? 0m;
+
+                var documentLine = new DocumentLine
+                {
+                    ProductId = selectedProduct.Id,
+                    Product = selectedProduct,
+                    Quantity = quantity,
+                    UnitPrice = sellingPrice,
+                    SellingPrice = sellingPrice,
+                    Notes = $"Отпуск покупателю"
+                };
+
+                _documentItems.Add(documentLine);
+
+                // Сбрасываем форму
+                txtQuantity.Text = "1";
+                cmbProduct.SelectedItem = null;
+                txtSellingPrice.Text = "0.00";
+
+                CheckPrescriptionItems();
+
+                UpdateDocumentTotals();
+                UpdateLineTotal();
+                ShowInfo($"Товар '{selectedProduct.Name}' добавлен");
+            }
+            catch (Exception ex)
+            {
+                ShowError("Ошибка добавления", ex.Message);
+            }
+        }
     }
 
     private bool FilterProduct(object obj)
@@ -392,7 +479,7 @@ public partial class OutgoingPage : Page, INotifyPropertyChanged
 
     #region Document Operations
 
-    private void ProcessDocument_Click(object sender, RoutedEventArgs e)
+    private async void ProcessDocument_Click(object sender, RoutedEventArgs e)
     {
         if (!ValidateDocument())
             return;
@@ -470,21 +557,53 @@ public partial class OutgoingPage : Page, INotifyPropertyChanged
                 var documentLines = new List<DocumentLine>();
                 foreach (var item in _documentItems)
                 {
+                    // Для маркированных товаров не задаём SourceBatchId — сервис возьмёт его из SGTIN
+                    int? sourceBatchId = null;
+                    if (item.Product == null || !item.Product.IsTracked)
+                    {
+                        // Для немаркированных товаров
+                        var availableBatches = _batchService.GetByProduct(item.ProductId)
+                            .Where(b => b.IsActive && b.Quantity > 0)
+                            .OrderBy(b => b.ExpirationDate)
+                            .ToList();
+                        var batchToUse = availableBatches.FirstOrDefault();
+                        sourceBatchId = batchToUse?.Id;
+                    }
+
                     var line = new DocumentLine
                     {
                         ProductId = item.ProductId,
                         Quantity = item.Quantity,
                         UnitPrice = item.UnitPrice,
                         SellingPrice = item.SellingPrice,
+                        SourceBatchId = sourceBatchId,
                         Notes = $"Отпуск покупателю" +
-                               (_hasPrescriptionItems ? $", клиент: {txtCustomerName.Text}" : "")
+                               (_hasPrescriptionItems ? $", клиент: {txtCustomerName.Text}" : ""),
+                        Sgtin = item.Sgtin
                     };
                     documentLines.Add(line);
                 }
 
                 int documentId = _documentService.CreateOutgoing(_currentDocument, documentLines);
+                _currentDocument.Id = documentId;
 
-                ShowInfo($"Документ проведен успешно!\nНомер: {_currentDocument.Number}\nID: {documentId}");
+                // Проверяем, был ли документ уже отправлен в МДЛП
+                var existingMdlpDoc = await _context.MdlpDocuments
+                    .FirstOrDefaultAsync(d => d.DocumentId == _currentDocument.Id);
+
+                if (existingMdlpDoc != null)
+                {
+                    MessageBox.Show($"Документ уже отправлен в МДЛП.\nСтатус: {existingMdlpDoc.StatusText}",
+                        "Предупреждение", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    InitializeNewDocument();
+                    return;
+                }
+
+                // Вызываем МДЛП сервис
+                var mdlpResult = await _mdlpService.SendOutgoingAsync(_currentDocument);
+                string mdlpStatusText = mdlpResult.Status == "Accepted" ? "Принято" : "Ожидает обработки";
+
+                ShowInfo($"Документ проведен успешно!\nНомер: {_currentDocument.Number}\nID: {documentId}\nМДЛП: {mdlpStatusText} (ID: {mdlpResult.MdlpDocumentId})");
 
                 InitializeNewDocument();
             }
@@ -541,7 +660,8 @@ public partial class OutgoingPage : Page, INotifyPropertyChanged
                     UnitPrice = item.UnitPrice,
                     SellingPrice = item.SellingPrice,
                     Notes = $"Отпуск покупателю (черновик)" +
-                           (_hasPrescriptionItems ? $", клиент: {txtCustomerName.Text}" : "")
+                           (_hasPrescriptionItems ? $", клиент: {txtCustomerName.Text}" : ""),
+                    Sgtin = item.Sgtin
                 };
                 documentLines.Add(line);
             }
@@ -636,8 +756,41 @@ public partial class OutgoingPage : Page, INotifyPropertyChanged
                 ShowInfo($"Товар '{product.Name}' отсутствует на складе");
             }
 
+            // Проверяем, маркирован ли товар
+            if (product.IsTracked)
+            {
+                // Для маркированных товаров: показываем SGTIN, скрываем количество, устанавливаем количество=1
+                lblSgtin.Visibility = Visibility.Visible;
+                cmbSgtin.Visibility = Visibility.Visible;
+                txtQuantity.Text = "1";
+                txtQuantity.IsEnabled = false;
+
+                // Загружаем доступные SGTIN для этого товара (статус InCirculation)
+                var availableSgtins = _context.MdlpSgtins
+                    .Include(s => s.Batch)
+                    .Where(s => s.ProductId == product.Id && s.Status == "InCirculation")
+                    .ToList();
+                cmbSgtin.ItemsSource = availableSgtins;
+                cmbSgtin.SelectedItem = null;
+            }
+            else
+            {
+                // Для немаркированных: показываем количество, скрываем SGTIN
+                lblSgtin.Visibility = Visibility.Collapsed;
+                cmbSgtin.Visibility = Visibility.Collapsed;
+                txtQuantity.IsEnabled = true;
+                cmbSgtin.ItemsSource = null;
+            }
+
             UpdateLineTotal();
 
+        }
+        else
+        {
+            lblSgtin.Visibility = Visibility.Collapsed;
+            cmbSgtin.Visibility = Visibility.Collapsed;
+            txtQuantity.IsEnabled = true;
+            cmbSgtin.ItemsSource = null;
         }
     }
 

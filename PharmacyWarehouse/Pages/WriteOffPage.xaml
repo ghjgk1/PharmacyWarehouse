@@ -1,4 +1,4 @@
-﻿<Page x:Class="PharmacyWarehouse.Pages.WriteOffPage"
+<Page x:Class="PharmacyWarehouse.Pages.WriteOffPage"
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
@@ -25,12 +25,21 @@
                                 Height="42"
                                 Click="SaveDraft_Click"/>
 
-                        <Button Content="✅ Провести списание" 
+                        <Button x:Name="btnProcessWriteOff"
+                                Content="✅ Провести списание" 
                                 Style="{StaticResource DangerButton}" 
                                 Width="180"
                                 Height="42"
                                 Margin="8,0,0,0"
                                 Click="ProcessWriteOff_Click"/>
+
+                        <TextBlock x:Name="txtAlreadySentHint"
+                                   Text="Документ уже отправлен в МДЛП"
+                                   Foreground="{StaticResource AccentOrangeBrush}"
+                                   FontWeight="SemiBold"
+                                   VerticalAlignment="Center"
+                                   Margin="16,0,0,0"
+                                   Visibility="Collapsed"/>
 
                         <Button Content="↩️ Отмена" 
                                 Width="100"
@@ -316,6 +325,20 @@
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
+                                <!-- SGTIN -->
+                                <DataGridTextColumn Header="SGTIN" 
+                                                  Width="200"
+                                                  Binding="{Binding Sgtin}">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                            <Setter Property="ToolTip" Value="{Binding Sgtin}"/>
+                                            <Setter Property="Margin" Value="10 0"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
                                 <!-- Срок годности -->
                                 <DataGridTextColumn Header="Срок годности" 
                                                   Width="110"
@@ -501,6 +524,18 @@
                                     Height="36"
                                     Margin="0,0,0,12"
                                     PreviewTextInput="NumberValidationTextBox"/>
+
+                            <!-- SGTIN -->
+                            <TextBlock x:Name="lblSgtin" Text="Код маркировки (SGTIN) *" 
+                                       Style="{StaticResource BodyText}" 
+                                       FontWeight="SemiBold"
+                                       Margin="0,0,0,4"
+                                       Visibility="Collapsed"/>
+                            <ComboBox x:Name="cmbSgtin" 
+                                     DisplayMemberPath="Sgtin"
+                                     Height="36"
+                                     Margin="0,0,0,12"
+                                     Visibility="Collapsed"/>
 
                             <!-- Причина списания для этой позиции -->
 

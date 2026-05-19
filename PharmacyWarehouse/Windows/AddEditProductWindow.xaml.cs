@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using PharmacyWarehouse.Models;
 using PharmacyWarehouse.Services;
 using System;
@@ -66,6 +66,8 @@ public partial class AddEditProductWindow : Window, INotifyPropertyChanged
                     UnitOfMeasure = existingProduct.UnitOfMeasure,
                     MinRemainder = existingProduct.MinRemainder,
                     RequiresPrescription = existingProduct.RequiresPrescription,
+                    IsTracked = existingProduct.IsTracked,
+                    Gtin = existingProduct.Gtin,
                     IsActive = existingProduct.IsActive,
                     IsSalesBlocked = existingProduct.IsSalesBlocked,
                     ArchiveDate = existingProduct.ArchiveDate,
@@ -170,6 +172,23 @@ public partial class AddEditProductWindow : Window, INotifyPropertyChanged
             MessageBox.Show("Минимальный остаток не может быть отрицательным", "Ошибка",
                 MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
+        }
+
+        if (Product.IsTracked)
+        {
+            if (string.IsNullOrWhiteSpace(Product.Gtin))
+            {
+                MessageBox.Show("Введите GTIN для маркированного товара", "Ошибка",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            if (Product.Gtin.Length != 14 || !Product.Gtin.All(char.IsDigit))
+            {
+                MessageBox.Show("GTIN должен содержать ровно 14 цифр", "Ошибка",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
         }
 
         try

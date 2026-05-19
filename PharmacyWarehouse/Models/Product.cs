@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -22,6 +22,8 @@ public partial class Product : ObservableObject
     private string? _archiveComment;     
     private DateTime? _archiveDate;
     private string? _description;
+    private string? _gtin;
+    private bool _isTracked;
 
     public int Id
     {
@@ -106,9 +108,24 @@ public partial class Product : ObservableObject
         set => SetProperty(ref _description, value);
     }
 
+    public string? Gtin
+    {
+        get => _gtin;
+        set => SetProperty(ref _gtin, value);
+    }
+
+    public bool IsTracked
+    {
+        get => _isTracked;
+        set => SetProperty(ref _isTracked, value);
+    }
+
     public virtual ICollection<Batch> Batches { get; set; } = new ObservableCollection<Batch>();
     public virtual Category? Category { get; set; }
+    [NotMapped]
     public virtual ICollection<DocumentLine> DocumentLines { get; set; } = new ObservableCollection<DocumentLine>();
+    [NotMapped]
+    public virtual ICollection<MdlpSgtin> MdlpSgtins { get; set; } = new ObservableCollection<MdlpSgtin>();
     
 
     [NotMapped]
