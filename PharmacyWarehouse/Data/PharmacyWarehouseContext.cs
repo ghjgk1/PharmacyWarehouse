@@ -21,6 +21,8 @@ public partial class PharmacyWarehouseContext : DbContext
     public virtual DbSet<MdlpDocumentHistory> MdlpDocumentHistories { get; set; }
     public virtual DbSet<MdlpSetting> MdlpSettings { get; set; }
     public virtual DbSet<MdlpSgtin> MdlpSgtins { get; set; }
+    public virtual DbSet<Inventory> Inventories { get; set; }
+    public virtual DbSet<InventoryLine> InventoryLines { get; set; }
     public virtual DbSet<Product> Products { get; set; }
     public virtual DbSet<Supplier> Suppliers { get; set; }
     public virtual DbSet<User> Users { get; set; }
@@ -100,6 +102,33 @@ public partial class PharmacyWarehouseContext : DbContext
             entity.HasOne(d => d.CorrectionDocument).WithMany(p => p.BatchCorrectionLogs)
                 .HasForeignKey(d => d.CorrectionDocumentId)
                 .HasConstraintName("FK_BatchCorrectionLogs_CorrectionDocumentId");
+        });
+
+        modelBuilder.Entity<Inventory>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("ID");
+            entity.Property(e => e.Number).HasMaxLength(50);
+            entity.Property(e => e.Status).HasMaxLength(20).HasDefaultValue("Draft");
+            entity.Property(e => e.CreatedBy).HasMaxLength(100);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getdate())").HasColumnType("datetime");
+            entity.Property(e => e.CompletedAt).HasColumnType("datetime");
+            entity.Property(e => e.Notes).HasMaxLength(500);
+        });
+
+        modelBuilder.Entity<InventoryLine>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("ID");
+            entity.Property(e => e.Notes).HasMaxLength(200);
+
+            entity.HasOne(d => d.Inventory).WithMany(p => p.InventoryLines)
+                .HasForeignKey(d => d.InventoryId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(d => d.Batch).WithMany()
+                .HasForeignKey(d => d.BatchId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
         });
 
         modelBuilder.Entity<Category>(entity =>
@@ -285,6 +314,9 @@ public partial class PharmacyWarehouseContext : DbContext
             entity.Property(e => e.UnitOfMeasure)
                 .HasMaxLength(20)
                 .HasDefaultValue("шт.");
+            entity.Property(e => e.StorageTemperatureMin).HasColumnType("decimal(5,1)");
+            entity.Property(e => e.StorageTemperatureMax).HasColumnType("decimal(5,1)");
+            entity.Property(e => e.StorageConditions).HasMaxLength(500);
 
             entity.HasOne(d => d.Category).WithMany(p => p.Products)
                 .HasForeignKey(d => d.CategoryId)

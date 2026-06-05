@@ -5,7 +5,7 @@
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
       xmlns:local="clr-namespace:PharmacyWarehouse.Pages"
       mc:Ignorable="d" 
-      Title="Приход товара">
+      Title="Приход товара" Background="White">
 
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="16">
@@ -201,6 +201,21 @@
                     </Border>
                 </StackPanel>
             </Border>
+
+            <!-- Сканирование DataMatrix -->
+            <GroupBox Header="Сканирование DataMatrix" Style="{StaticResource CardGroupBox}" Margin="0,0,0,16">
+                <StackPanel Margin="8">
+                    <TextBox x:Name="txtDataMatrix"
+                             Height="36"
+                             KeyDown="txtDataMatrix_KeyDown"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <Button x:Name="btnParseDataMatrix" Content="Разобрать"
+                                Style="{StaticResource PrimaryButton}" Click="btnParseDataMatrix_Click"/>
+                        <TextBlock x:Name="txtParseResult" Style="{StaticResource BodyText}"
+                                   Margin="12,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </StackPanel>
+            </GroupBox>
 
             <!-- ДОБАВЛЕНИЕ ТОВАРА -->
             <Border Style="{StaticResource Card}" Padding="0">

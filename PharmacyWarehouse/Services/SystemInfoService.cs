@@ -41,6 +41,11 @@ namespace PharmacyWarehouse.Services
             private set => SetProperty(ref _notificationCount, value);
         }
 
+        public void SetNotificationCount(int count)
+        {
+            SetProperty(ref _notificationCount, count);
+        }
+
         public void ResetNotificationCount()
         {
             SetProperty(ref _notificationCount, 0);

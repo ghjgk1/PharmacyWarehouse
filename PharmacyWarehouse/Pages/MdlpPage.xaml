@@ -7,6 +7,9 @@
       mc:Ignorable="d" 
       d:DesignHeight="600" d:DesignWidth="1000"
       Title="МДЛП">
+    <Page.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+    </Page.Resources>
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -60,6 +63,16 @@
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
                             <DataGridTextColumn Header="ID МДЛП" Binding="{Binding MdlpDocumentId}" Width="*"/>
+                            <DataGridTemplateColumn Header="Действие" Width="140">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Button Content="🔄 Повторить"
+                                                Visibility="{Binding IsError, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                Click="RowRetry_Click"
+                                                Padding="8,4"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
                         </DataGrid.Columns>
                     </DataGrid>
                     

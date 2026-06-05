@@ -275,6 +275,7 @@ public partial class BatchesPage : Page
         txtBatchExpiration.Text = "Срок годности: -";
         txtBatchQuantity.Text = "Остаток: -";
         txtBatchPrice.Text = "Цена закупки: -";
+        txtBatchStorage.Text = "Условия хранения: -";
 
     }
 
@@ -292,6 +293,14 @@ public partial class BatchesPage : Page
                 txtBatchExpiration.Text = $"Срок годности: {fullBatch.ExpirationDate:dd.MM.yyyy}";
                 txtBatchQuantity.Text = $"Остаток: {fullBatch.Quantity:N0}";
                 txtBatchPrice.Text = $"Цена закупки: {fullBatch.PurchasePrice:N2} руб.";
+                var storage = fullBatch.Product?.StorageConditions;
+                if (!string.IsNullOrWhiteSpace(storage))
+                    txtBatchStorage.Text = $"Условия хранения: {storage}";
+                else if (fullBatch.Product?.StorageTemperatureMin.HasValue == true
+                      || fullBatch.Product?.StorageTemperatureMax.HasValue == true)
+                    txtBatchStorage.Text = $"Темп. хранения: {fullBatch.Product.StorageTemperatureMin}…{fullBatch.Product.StorageTemperatureMax} °C";
+                else
+                    txtBatchStorage.Text = "Условия хранения: не указаны";
 
             }
             else

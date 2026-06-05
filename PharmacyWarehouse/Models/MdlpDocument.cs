@@ -180,6 +180,9 @@ public partial class MdlpDocument : ObservableObject
     }
 
     [NotMapped]
+    public bool IsError => Status == "Error";
+
+    [NotMapped]
     public bool CanRetry
     {
         get

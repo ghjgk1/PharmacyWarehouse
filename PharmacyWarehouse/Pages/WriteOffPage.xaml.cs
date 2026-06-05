@@ -42,6 +42,7 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
     private int _totalQuantity = 0;
     private string _currentUser = String.Empty;
 
+    public int? PreselectedProductId { get; set; }
 
     public WriteOffPage(int? documentId = null, Batch? selectedBatch = null)
     {
@@ -57,14 +58,24 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
         LoadData();
 
         DataContext = this;
-        Loaded += (s, e) =>
+        Loaded += async (s, e) =>
         {
+            // Дожидаемся полной загрузки данных
+            await System.Threading.Tasks.Task.Delay(100);
+            
             if (selectedBatch != null)
                 PrefillWithBatch(selectedBatch);
             else if (documentId.HasValue)
                 LoadDraft(documentId.Value);
             else
+            {
                 InitializeNewDocument();
+                // Используем Dispatcher для применения предвыбранного товара после полной инициализации
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    ApplyPreselectedProduct();
+                }), System.Windows.Threading.DispatcherPriority.Background);
+            }
         };
 
         _documentItems = new ObservableCollection<DocumentLine>();
@@ -120,6 +131,64 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
         UpdateDocumentTotals();
         ResetItemForm();
     }
+
+    private async void ApplyPreselectedProduct()
+        {
+            if (!PreselectedProductId.HasValue) return;
+
+            // Ждем загрузки данных
+            await Task.Delay(100);
+            
+            // Пытаемся найти товар сначала в списке товаров с остатком, затем в общем списке
+            var product = _productsWithStock.FirstOrDefault(p => p.Id == PreselectedProductId.Value);
+            if (product == null)
+            {
+                product = _allProducts.FirstOrDefault(p => p.Id == PreselectedProductId.Value);
+            }
+            
+            if (product == null)
+            {
+                // Если не найдено, попробуем загрузить из БД
+                product = await _context.Products.FirstOrDefaultAsync(p => p.Id == PreselectedProductId.Value);
+                if (product != null)
+                {
+                    // Проверим, есть ли у него остаток
+                    var hasStock = _batchService.GetByProduct(product.Id)
+                        .Any(b => b.IsActive && b.Quantity > 0);
+                        
+                    // Добавим в списки
+                    _allProducts.Add(product);
+                    _allProductsObservable.Add(product);
+                    
+                    if (hasStock)
+                    {
+                        _productsWithStock.Add(product);
+                    }
+                    
+                    _filteredProductsView?.Refresh();
+                }
+            }
+
+            if (product != null)
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    cmbProduct.SelectedItem = product;
+                    // После выбора товара автоматически выбираем первую доступную партию (для немаркированных)
+                    // или загружаем SGTIN (для маркированных)
+                    if (!product.IsTracked)
+                    {
+                        LoadAvailableBatches(product.Id);
+                    }
+                });
+            }
+            else
+            {
+                MessageBox.Show($"Товар с ID {PreselectedProductId.Value} не найден", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+
+            PreselectedProductId = null;
+        }
 
     private void PrefillWithBatch(Batch batch)
     {

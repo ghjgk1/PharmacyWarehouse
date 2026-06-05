@@ -27,6 +27,7 @@ namespace PharmacyWarehouse
 
             // Регистрируем сервисы
             services.AddSingleton<IWordDocumentGenerator, WordDocumentGenerator>();
+            services.AddSingleton<IExcelReportGenerator, ExcelReportGenerator>();
 
             services.AddSingleton<AuthService>();
             services.AddSingleton<ProductService>();
@@ -34,6 +35,10 @@ namespace PharmacyWarehouse
             services.AddSingleton<BatchService>();
             services.AddSingleton<CategoryService>();
             services.AddSingleton<DocumentService>();
+            services.AddSingleton<NotificationService>();
+            services.AddSingleton<ReportService>();
+            services.AddSingleton<DashboardService>();
+            services.AddSingleton<InventoryService>();
             services.AddSingleton<MdlpXmlGenerator>();
             services.AddSingleton<MdlpErrorGenerator>();
             services.AddSingleton<MdlpStatusPoller>();
@@ -66,6 +71,10 @@ namespace PharmacyWarehouse
             services.AddTransient<SuppliersPage>();
             services.AddTransient<WriteOffPage>();
             services.AddTransient<MdlpPage>();
+            services.AddTransient<DashboardPage>();
+            services.AddTransient<NotificationsPage>();
+            services.AddTransient<ReportsPage>();
+            services.AddTransient<InventoryPage>();
 
             ServiceProvider = services.BuildServiceProvider();
 

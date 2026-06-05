@@ -73,7 +73,10 @@ public partial class AddEditProductWindow : Window, INotifyPropertyChanged
                     ArchiveDate = existingProduct.ArchiveDate,
                     ArchiveReason = existingProduct.ArchiveReason,
                     ArchiveComment = existingProduct.ArchiveComment,
-                    Description = existingProduct.Description
+                    Description = existingProduct.Description,
+                    StorageTemperatureMin = existingProduct.StorageTemperatureMin,
+                    StorageTemperatureMax = existingProduct.StorageTemperatureMax,
+                    StorageConditions = existingProduct.StorageConditions
                 };
 
                 if (Product.CategoryId.HasValue)

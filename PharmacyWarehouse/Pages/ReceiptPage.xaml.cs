@@ -46,6 +46,7 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
     private int _totalQuantity = 0;
     private string _currentUser = String.Empty;
 
+    public int? PreselectedProductId { get; set; }
 
     public ReceiptPage(int? documentId = null)
     {
@@ -68,7 +69,10 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
             if (documentId.HasValue)
                 LoadDraft(documentId.Value);
             else
+            {
                 InitializeNewDocument();
+                ApplyPreselectedProduct();
+            }
         };
 
         _documentItems = new ObservableCollection<DocumentLine>();
@@ -96,6 +100,44 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
     #endregion
 
     #region Initialization
+
+    private async void ApplyPreselectedProduct()
+    {
+        if (!PreselectedProductId.HasValue) return;
+
+        // Ждем загрузки данных
+        await Task.Delay(100);
+        
+        // Попробуем найти товар в _allProducts, а если нет - загрузим из БД
+        var product = _allProducts.FirstOrDefault(p => p.Id == PreselectedProductId.Value);
+        if (product == null)
+        {
+            // Если не найдено, попробуем загрузить из контекста
+            product = await _context.Products.FirstOrDefaultAsync(p => p.Id == PreselectedProductId.Value);
+            if (product != null)
+            {
+                // Добавим в _allProducts, чтобы он был доступен в ComboBox
+                _allProducts.Add(product);
+                _allProductsObservable.Add(product);
+                _filteredProductsView?.Refresh();
+            }
+        }
+        
+        if (product != null)
+        {
+            // Используем Dispatcher, чтобы выполнить в UI потоке
+            Dispatcher.Invoke(() =>
+            {
+                cmbProduct.SelectedItem = product;
+            });
+        }
+        else
+        {
+            MessageBox.Show($"Товар с ID {PreselectedProductId.Value} не найден", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+
+        PreselectedProductId = null;
+    }
 
     private void InitializeNewDocument()
     {
@@ -878,6 +920,52 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
     {
         MessageBox.Show(message, title,
             MessageBoxButton.OK, MessageBoxImage.Error);
+    }
+
+    private void btnParseDataMatrix_Click(object sender, RoutedEventArgs e)
+    {
+        var code = txtDataMatrix.Text.Trim();
+        if (string.IsNullOrEmpty(code)) return;
+
+        var result = DataMatrixParser.Parse(code);
+
+        if (!result.IsValid)
+        {
+            txtParseResult.Text = $"Ошибка: {result.ErrorMessage}";
+            return;
+        }
+
+        if (result.Sgtin != null)
+            txtSgtin.Text = result.Sgtin;
+
+        if (result.Gtin != null)
+        {
+            var product = _allProducts.FirstOrDefault(p => p.Gtin == result.Gtin);
+            if (product != null)
+            {
+                cmbProduct.SelectedItem = product;
+                txtParseResult.Text = $"Товар найден: {product.Name}";
+            }
+            else
+            {
+                txtParseResult.Text = $"Товар с GTIN {result.Gtin} не найден в справочнике";
+            }
+        }
+
+        if (result.Series != null)
+            txtSeries.Text = result.Series;
+
+        if (result.ExpirationDate.HasValue)
+            dpExpirationDate.SelectedDate = result.ExpirationDate.Value.ToDateTime(TimeOnly.MinValue);
+    }
+
+    private void txtDataMatrix_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter)
+        {
+            btnParseDataMatrix_Click(sender, e);
+            e.Handled = true;
+        }
     }
 
     #endregion

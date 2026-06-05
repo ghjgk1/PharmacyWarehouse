@@ -101,6 +101,32 @@
                               Margin="0,4,0,0"/>
                 </StackPanel>
 
+                <!-- Условия хранения -->
+                <TextBlock Text="Условия хранения" Style="{StaticResource H3}" Margin="0,0,0,8"/>
+                <Grid Margin="0,0,0,16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Темп. хранения мин., °C" Style="{StaticResource BodyText}" Margin="0,0,8,4"/>
+                    <TextBlock Grid.Row="0" Grid.Column="1" Text="Темп. хранения макс., °C" Style="{StaticResource BodyText}" Margin="0,0,0,4"/>
+                    <TextBox Grid.Row="1" Grid.Column="0" x:Name="txtStorageTempMin"
+                             Text="{Binding Product.StorageTemperatureMin, UpdateSourceTrigger=PropertyChanged}"
+                             Margin="0,0,8,0" Height="40"/>
+                    <TextBox Grid.Row="1" Grid.Column="1" x:Name="txtStorageTempMax"
+                             Text="{Binding Product.StorageTemperatureMax, UpdateSourceTrigger=PropertyChanged}"
+                             Height="40"/>
+                </Grid>
+                <StackPanel Margin="0,0,0,16">
+                    <TextBlock Text="Условия хранения" Style="{StaticResource H3}" Margin="0,0,0,4"/>
+                    <TextBox Text="{Binding Product.StorageConditions, UpdateSourceTrigger=PropertyChanged}"
+                             MaxLength="500" Height="60" TextWrapping="Wrap" AcceptsReturn="True"/>
+                </StackPanel>
+
                 <!-- Рецептурный -->
                 <CheckBox Content="Требует рецепта" 
                          IsChecked="{Binding Product.RequiresPrescription}"

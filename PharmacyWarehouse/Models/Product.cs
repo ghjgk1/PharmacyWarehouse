@@ -24,6 +24,9 @@ public partial class Product : ObservableObject
     private string? _description;
     private string? _gtin;
     private bool _isTracked;
+    private decimal? _storageTemperatureMin;
+    private decimal? _storageTemperatureMax;
+    private string? _storageConditions;
 
     public int Id
     {
@@ -120,6 +123,24 @@ public partial class Product : ObservableObject
         set => SetProperty(ref _isTracked, value);
     }
 
+    public decimal? StorageTemperatureMin
+    {
+        get => _storageTemperatureMin;
+        set => SetProperty(ref _storageTemperatureMin, value);
+    }
+
+    public decimal? StorageTemperatureMax
+    {
+        get => _storageTemperatureMax;
+        set => SetProperty(ref _storageTemperatureMax, value);
+    }
+
+    public string? StorageConditions
+    {
+        get => _storageConditions;
+        set => SetProperty(ref _storageConditions, value);
+    }
+
     public virtual ICollection<Batch> Batches { get; set; } = new ObservableCollection<Batch>();
     public virtual Category? Category { get; set; }
     [NotMapped]
@@ -127,6 +148,17 @@ public partial class Product : ObservableObject
     [NotMapped]
     public virtual ICollection<MdlpSgtin> MdlpSgtins { get; set; } = new ObservableCollection<MdlpSgtin>();
     
+
+    [NotMapped]
+    public string StorageTemperatureDisplay
+    {
+        get
+        {
+            if (StorageTemperatureMin.HasValue || StorageTemperatureMax.HasValue)
+                return $"{StorageTemperatureMin}…{StorageTemperatureMax} °C";
+            return "—";
+        }
+    }
 
     [NotMapped]
     public bool IsLowStock => CurrentStock > 0 && CurrentStock <= MinRemainder;
@@ -186,8 +218,12 @@ public partial class Product : ObservableObject
             var today = DateOnly.FromDateTime(DateTime.Now);
 
             return nearestBatch.ExpirationDate < today;
-
-
         }
     }
+
+    [NotMapped]
+    public string PrescriptionText => RequiresPrescription ? "Да" : "Нет";
+
+    [NotMapped]
+    public string StatusText => IsActive ? "Активен" : "Архив";
 }

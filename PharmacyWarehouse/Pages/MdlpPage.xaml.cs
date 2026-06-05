@@ -7,6 +7,7 @@ using PharmacyWarehouse.Windows;
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 
@@ -142,6 +143,15 @@ public partial class MdlpPage : Page
         }
     }
 
+    private async void RowRetry_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as Button)?.DataContext is MdlpDocument doc)
+        {
+            dgDocuments.SelectedItem = doc;
+            await RetryDocumentAsync(doc);
+        }
+    }
+
     private async void BtnRetry_Click(object sender, RoutedEventArgs e)
     {
         if (dgDocuments.SelectedItem is not MdlpDocument doc)
@@ -150,6 +160,11 @@ public partial class MdlpPage : Page
             return;
         }
 
+        await RetryDocumentAsync(doc);
+    }
+
+    private async Task RetryDocumentAsync(MdlpDocument doc)
+    {
         try
         {
             // Загрузить оригинальный документ с линиями и продуктами

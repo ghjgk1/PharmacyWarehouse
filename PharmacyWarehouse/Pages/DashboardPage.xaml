@@ -1,0 +1,121 @@
+<Page x:Class="PharmacyWarehouse.Pages.DashboardPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      xmlns:conv="clr-namespace:PharmacyWarehouse.Converters"
+      mc:Ignorable="d"
+      Title="Главная">
+
+    <Page.Resources>
+        <conv:IntToVisibilityConverter x:Key="IntToVisibilityConverter"/>
+    </Page.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="16">
+            <Border Style="{StaticResource Card}">
+                <TextBlock Text="📊 Панель управления" Style="{StaticResource H1}"/>
+            </Border>
+
+            <UniformGrid Columns="5" Margin="0,16,0,0">
+                <Border Background="#2196F3" CornerRadius="8" Padding="16" Margin="4">
+                    <StackPanel>
+                        <TextBlock x:Name="txtTotalProducts" Text="0" FontSize="32" FontWeight="Bold" Foreground="White"/>
+                        <TextBlock Text="Всего препаратов" Foreground="White" FontSize="12"/>
+                    </StackPanel>
+                </Border>
+                <Border Background="#4CAF50" CornerRadius="8" Padding="16" Margin="4">
+                    <StackPanel>
+                        <TextBlock x:Name="txtTotalBatches" Text="0" FontSize="32" FontWeight="Bold" Foreground="White"/>
+                        <TextBlock Text="Всего партий" Foreground="White" FontSize="12"/>
+                    </StackPanel>
+                </Border>
+                <Border Background="#F44336" CornerRadius="8" Padding="16" Margin="4">
+                    <StackPanel>
+                        <TextBlock x:Name="txtExpiredBatches" Text="0" FontSize="32" FontWeight="Bold" Foreground="White"/>
+                        <TextBlock Text="Просроченных партий" Foreground="White" FontSize="12"/>
+                    </StackPanel>
+                </Border>
+                <Border Background="#FF9800" CornerRadius="8" Padding="16" Margin="4">
+                    <StackPanel>
+                        <TextBlock x:Name="txtLowStock" Text="0" FontSize="32" FontWeight="Bold" Foreground="White"/>
+                        <TextBlock Text="Мало остатка" Foreground="White" FontSize="12"/>
+                    </StackPanel>
+                </Border>
+                <Border Background="#FFEB3B" CornerRadius="8" Padding="16" Margin="4">
+                    <StackPanel>
+                        <TextBlock x:Name="txtExpiringBatches" Text="0" FontSize="32" FontWeight="Bold" Foreground="#333"/>
+                        <TextBlock Text="Истекает срок &lt; 30 дней" Foreground="#333" FontSize="12"/>
+                    </StackPanel>
+                </Border>
+            </UniformGrid>
+
+            <Border Style="{StaticResource Card}" Margin="0,16,0,0">
+                <StackPanel>
+                    <TextBlock Text="Топ продаж за 30 дней" Style="{StaticResource H3}" Margin="0,0,0,8"/>
+                    <DataGrid x:Name="dgTopSales" AutoGenerateColumns="False" IsReadOnly="True"
+                              CanUserAddRows="False" MaxHeight="220">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Место" Binding="{Binding Rank}" Width="60"/>
+                            <DataGridTextColumn Header="Наименование" Binding="{Binding ProductName}" Width="*"/>
+                            <DataGridTextColumn Header="Продано шт." Binding="{Binding TotalQuantity}" Width="100"/>
+                            <DataGridTextColumn Header="Выручка руб." Binding="{Binding TotalRevenue, StringFormat=N2}" Width="120"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}" Margin="0,16,0,0">
+                <StackPanel>
+                    <TextBlock Text="Динамика движения товаров (30 дней)" Style="{StaticResource H3}" Margin="0,0,0,8"/>
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto" Height="220">
+                        <ItemsControl x:Name="chartDynamics">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Margin="3,0" VerticalAlignment="Bottom" Width="42">
+                                        <!-- Приход -->
+                                        <Grid Visibility="{Binding IncomeQty, Converter={StaticResource IntToVisibilityConverter}}"
+                                              MinHeight="12" Height="{Binding IncomeHeight}" VerticalAlignment="Bottom" Margin="0,0,0,1">
+                                            <Rectangle Fill="#2196F3" ToolTipService.ToolTip="{Binding IncomeQty, StringFormat='Приход: {0} шт.'}"/>
+                                            <TextBlock Text="{Binding IncomeQty}" FontSize="8" Foreground="White" FontWeight="Bold"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Grid>
+                                        <!-- Продажа -->
+                                        <Grid Visibility="{Binding SaleQty, Converter={StaticResource IntToVisibilityConverter}}"
+                                              MinHeight="12" Height="{Binding SaleHeight}" VerticalAlignment="Bottom" Margin="0,0,0,1">
+                                            <Rectangle Fill="#4CAF50" ToolTipService.ToolTip="{Binding SaleQty, StringFormat='Продажа: {0} шт.'}"/>
+                                            <TextBlock Text="{Binding SaleQty}" FontSize="8" Foreground="White" FontWeight="Bold"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Grid>
+                                        <!-- Списание -->
+                                        <Grid Visibility="{Binding WriteOffQty, Converter={StaticResource IntToVisibilityConverter}}"
+                                              MinHeight="12" Height="{Binding WriteOffHeight}" VerticalAlignment="Bottom">
+                                            <Rectangle Fill="#F44336" ToolTipService.ToolTip="{Binding WriteOffQty, StringFormat='Списание: {0} шт.'}"/>
+                                            <TextBlock Text="{Binding WriteOffQty}" FontSize="8" Foreground="White" FontWeight="Bold"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Grid>
+                                        <!-- Дата -->
+                                        <TextBlock Text="{Binding DateLabel}" FontSize="9" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <Rectangle Width="16" Height="16" Fill="#2196F3" Margin="0,0,4,0"/>
+                        <TextBlock Text="Приход (шт.)" Margin="0,0,16,0" Style="{StaticResource Caption}"/>
+                        <Rectangle Width="16" Height="16" Fill="#4CAF50" Margin="0,0,4,0"/>
+                        <TextBlock Text="Продажа (шт.)" Margin="0,0,16,0" Style="{StaticResource Caption}"/>
+                        <Rectangle Width="16" Height="16" Fill="#F44336" Margin="0,0,4,0"/>
+                        <TextBlock Text="Списание (шт.)" Style="{StaticResource Caption}"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

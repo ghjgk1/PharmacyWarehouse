@@ -327,6 +327,17 @@
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
 
+                            <DataGridTextColumn Header="Усл. хранения"
+                                                Width="110"
+                                                Binding="{Binding StorageTemperatureDisplay}">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Setter Property="TextAlignment" Value="Center"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
                             <!-- Производитель -->
                             <DataGridTextColumn Header="Производитель" 
                                                 Width="150"

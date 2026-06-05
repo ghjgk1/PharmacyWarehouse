@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using PharmacyWarehouse.Models;
 using Microsoft.EntityFrameworkCore;
 using PharmacyWarehouse.Data;
@@ -7,7 +7,6 @@ namespace PharmacyWarehouse.Services
 {
     public class ProductService
     {
-        private readonly PharmacyWarehouseContext _db = BaseDbService.Instance.Context;
         public ObservableCollection<Product> Products { get; set; } = new();
 
         public ProductService()
@@ -15,10 +14,9 @@ namespace PharmacyWarehouse.Services
             GetAll();
         }
 
-        public int Commit() => _db.SaveChanges();
-
         public void Add(Product product)
         {
+            using var db = new PharmacyWarehouseContext();
             var _product = new Product
             {
                 Name = product.Name,
@@ -34,17 +32,25 @@ namespace PharmacyWarehouse.Services
                 ArchiveReason = product.ArchiveReason,
                 ArchiveComment = product.ArchiveComment,
                 Description = product.Description,
+                Gtin = product.Gtin,
+                IsTracked = product.IsTracked,
+                StorageTemperatureMin = product.StorageTemperatureMin,
+                StorageTemperatureMax = product.StorageTemperatureMax,
+                StorageConditions = product.StorageConditions,
             };
 
-            _db.Products.Add(_product);
-            if (Commit() > 0)
-                Products.Add(_product);
+            db.Products.Add(_product);
+            if (db.SaveChanges() > 0)
+                GetAll();
         }
+        
         public void GetAll()
         {
-            var products = _db.Products
+            using var db = new PharmacyWarehouseContext();
+            var products = db.Products
                 .Include(p => p.Category)
-                .Include(p => p.Batches)
+                .Include(p => p.Batches.Where(b => b.IsActive))
+                .AsNoTracking()
                 .ToList();
 
             Products.Clear();
@@ -56,7 +62,8 @@ namespace PharmacyWarehouse.Services
 
         public void Remove(Product product)
         {
-            var productWithBatches = _db.Products
+            using var db = new PharmacyWarehouseContext();
+            var productWithBatches = db.Products
                 .Include(p => p.Batches)
                 .FirstOrDefault(p => p.Id == product.Id);
 
@@ -68,22 +75,26 @@ namespace PharmacyWarehouse.Services
                     "Нельзя удалить товар, у которого есть партии. Сначала удалите или спишите все партии.");
             }
 
-            _db.Products.Remove(productWithBatches);
-            _db.SaveChanges();
+            db.Products.Remove(productWithBatches);
+            db.SaveChanges();
             GetAll();
         }
 
         public Product? GetById(int id)
         {
-            return _db.Products
+            using var db = new PharmacyWarehouseContext();
+            return db.Products
                 .Include(p => p.Category)
-                .Include(p => p.Batches)
+                .Include(p => p.Batches.Where(b => b.IsActive))
                 .Include(p => p.DocumentLines)
+                .AsNoTracking()
                 .FirstOrDefault(p => p.Id == id);
         }
+        
         public void Update(Product product)
         {
-            var existing = _db.Products.Find(product.Id);
+            using var db = new PharmacyWarehouseContext();
+            var existing = db.Products.Find(product.Id);
             if (existing == null) return;
 
             existing.Name = product.Name;
@@ -99,8 +110,13 @@ namespace PharmacyWarehouse.Services
             existing.ArchiveReason = product.ArchiveReason;
             existing.ArchiveComment = product.ArchiveComment;
             existing.Description = product.Description;
+            existing.Gtin = product.Gtin;
+            existing.IsTracked = product.IsTracked;
+            existing.StorageTemperatureMin = product.StorageTemperatureMin;
+            existing.StorageTemperatureMax = product.StorageTemperatureMax;
+            existing.StorageConditions = product.StorageConditions;
 
-            _db.SaveChanges();
+            db.SaveChanges();
             GetAll();
         }
 
@@ -119,8 +135,9 @@ namespace PharmacyWarehouse.Services
         public void ArchiveProduct(int productId, string reason, bool blockSales,
                           string comment = null)
         {
-            var product = _db.Products
-                .Include(p => p.Batches)
+            using var db = new PharmacyWarehouseContext();
+            var product = db.Products
+                .Include(p => p.Batches.Where(b => b.IsActive))
                 .FirstOrDefault(p => p.Id == productId);
 
             if (product == null) return;
@@ -144,32 +161,35 @@ namespace PharmacyWarehouse.Services
             if (!string.IsNullOrEmpty(comment))
                 archiveNote += $"\nКомментарий: {comment}";
 
-            _db.SaveChanges();
+            db.SaveChanges();
             GetAll();
         }
 
         public void ActivateProduct(int productId)
         {
-            var product = _db.Products.Find(productId);
+            using var db = new PharmacyWarehouseContext();
+            var product = db.Products.Find(productId);
             if (product == null) return;
 
             product.IsActive = true;
             product.IsSalesBlocked = false;
             product.ArchiveDate = null;
 
-            _db.SaveChanges();
+            db.SaveChanges();
             GetAll();
         }
 
         public bool CanSellProduct(int productId)
         {
-            var product = _db.Products.Find(productId);
+            using var db = new PharmacyWarehouseContext();
+            var product = db.Products.Find(productId);
             return product != null && !product.IsSalesBlocked;
         }
 
         public bool CanOrderProduct(int productId)
         {
-            var product = _db.Products.Find(productId);
+            using var db = new PharmacyWarehouseContext();
+            var product = db.Products.Find(productId);
             return product != null && product.IsActive;
         }
     }

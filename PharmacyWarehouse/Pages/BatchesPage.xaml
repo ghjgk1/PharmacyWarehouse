@@ -364,6 +364,7 @@
                                 <TextBlock x:Name="txtBatchExpiration" Text="Срок годности: -" Style="{StaticResource BodyText}"/>
                                 <TextBlock x:Name="txtBatchQuantity" Text="Остаток: -" Style="{StaticResource BodyText}"/>
                                 <TextBlock x:Name="txtBatchPrice" Text="Цена закупки: -" Style="{StaticResource BodyText}"/>
+                                <TextBlock x:Name="txtBatchStorage" Text="Условия хранения: -" Style="{StaticResource BodyText}" Margin="0,4,0,0"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>

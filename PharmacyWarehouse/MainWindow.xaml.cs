@@ -29,6 +29,7 @@ namespace PharmacyWarehouse
             InitializeComponent();
             _serviceProvider = App.ServiceProvider;
             _authService = _serviceProvider.GetService<AuthService>();
+            _systemInfo = new SystemInfoService();
             LoadUserInfo();
             ApplyRoleRestrictions();
             DataContext = _systemInfo;
@@ -92,11 +93,54 @@ namespace PharmacyWarehouse
 
         private void StartStatusUpdater()
         {
+            UpdateNotifications();
+
+            _statusTimer.Interval = TimeSpan.FromSeconds(60);
+            _statusTimer.Tick += (_, _) => UpdateNotifications();
+            _statusTimer.Start();
         }
+
+        private void UpdateNotifications()
+        {
+            var notificationService = _serviceProvider.GetService<NotificationService>();
+            var (lowStock, expiring, expired) = notificationService!.GetNotifications();
+            var count = lowStock.Count + expiring.Count + expired.Count;
+            _systemInfo.SetNotificationCount(count);
+            _systemInfo.UpdateInfo();
+
+            BtnNotificationsBell.Background = count > 0
+                ? new SolidColorBrush(Color.FromRgb(0xF4, 0x43, 0x36))
+                : Brushes.Transparent;
+        }
+
         private void LoadDefaultPage()
         {
-            var productsPage = _serviceProvider.GetService<ProductsPage>();
-            MainFrame.Navigate(productsPage);
+            var dashboardPage = _serviceProvider.GetService<DashboardPage>();
+            MainFrame.Navigate(dashboardPage);
+        }
+
+        private void Dashboard_Click(object sender, RoutedEventArgs e)
+        {
+            var page = _serviceProvider.GetService<DashboardPage>();
+            MainFrame.Navigate(page);
+        }
+
+        private void Notifications_Click(object sender, RoutedEventArgs e)
+        {
+            var page = _serviceProvider.GetService<NotificationsPage>();
+            MainFrame.Navigate(page);
+        }
+
+        private void Reports_Click(object sender, RoutedEventArgs e)
+        {
+            var page = _serviceProvider.GetService<ReportsPage>();
+            MainFrame.Navigate(page);
+        }
+
+        private void Inventory_Click(object sender, RoutedEventArgs e)
+        {
+            var page = _serviceProvider.GetService<InventoryPage>();
+            MainFrame.Navigate(page);
         }
 
         private void Products_Click(object sender, RoutedEventArgs e)

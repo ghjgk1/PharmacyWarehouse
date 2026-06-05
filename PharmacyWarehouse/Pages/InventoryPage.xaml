@@ -1,0 +1,39 @@
+<Page x:Class="PharmacyWarehouse.Pages.InventoryPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      mc:Ignorable="d"
+      Title="Инвентаризация">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="16">
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="📋 Инвентаризация" Style="{StaticResource H1}"/>
+                    <StackPanel Style="{StaticResource ToolbarPanel}">
+                        <Button Content="Создать акт" Style="{StaticResource PrimaryButton}"
+                                Click="CreateInventory_Click"/>
+                        <Button Content="Открыть" Style="{StaticResource SecondaryButton}"
+                                Margin="8,0,0,0" Click="OpenInventory_Click"/>
+                        <Button Content="Экспорт в Excel" Style="{StaticResource SuccessButton}"
+                                Margin="8,0,0,0" Click="ExportInventory_Click"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}" Margin="0,16,0,0">
+                <DataGrid x:Name="dgInventories" AutoGenerateColumns="False" IsReadOnly="True"
+                          CanUserAddRows="False" SelectionMode="Single">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Номер" Binding="{Binding Number}" Width="120"/>
+                        <DataGridTextColumn Header="Дата" Binding="{Binding InventoryDate, StringFormat='dd.MM.yyyy'}" Width="100"/>
+                        <DataGridTextColumn Header="Статус" Binding="{Binding Status}" Width="100"/>
+                        <DataGridTextColumn Header="Кем создан" Binding="{Binding CreatedBy}" Width="*"/>
+                        <DataGridTextColumn Header="Завершён" Binding="{Binding CompletedAt, StringFormat='dd.MM.yyyy HH:mm'}" Width="140"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</Page>
