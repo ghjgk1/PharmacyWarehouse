@@ -58,14 +58,14 @@ namespace PharmacyWarehouse.Services
         {
             try
             {
-                var db = BaseDbService.Instance;
+                using var db = new PharmacyWarehouseContext();
 
-                bool canConnect = db.Context.Database.CanConnect();
+                bool canConnect = db.Database.CanConnect();
                 DbStatus = canConnect ? "Online" : "Offline";
 
                 if (canConnect)
                 {
-                    ProductCount = db.Context.Products.Count();
+                    ProductCount = db.Products.Count();
                     Status = "Работает";
                 }
                 else

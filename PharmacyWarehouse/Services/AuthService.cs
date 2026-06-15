@@ -1,6 +1,7 @@
 ﻿using System.Security.Cryptography;
 using System.Text;
 using PharmacyWarehouse.Models;
+using PharmacyWarehouse.Data;
 
 namespace PharmacyWarehouse.Services;
 
@@ -23,9 +24,9 @@ public class AuthService
         if (CurrentUser?.Role != UserRole.Admin)
             return false;
 
-        var context = BaseDbService.Instance.Context;
+        using var db = new PharmacyWarehouseContext();
 
-        if (context.Users.Any(u => u.Login == login))
+        if (db.Users.Any(u => u.Login == login))
             return false;
 
         var user = new User
@@ -38,8 +39,8 @@ public class AuthService
             IsActive = true
         };
 
-        context.Users.Add(user);
-        context.SaveChanges();
+        db.Users.Add(user);
+        db.SaveChanges();
 
         return true;
     }
@@ -47,10 +48,10 @@ public class AuthService
     // Вход
     public User? Login(string login, string password)
     {
-        var context = BaseDbService.Instance.Context;
+        using var db = new PharmacyWarehouseContext();
         var passwordHash = HashPassword(password);
 
-            var user = context.Users
+            var user = db.Users
             .FirstOrDefault(u => u.Login == login &&
                                 u.PasswordHash == passwordHash &&
                                 u.IsActive);
@@ -72,11 +73,11 @@ public class AuthService
     // Создание администратора по умолчанию если нет пользователей
     public void CreateDefaultAdmin()
     {
-        var context = BaseDbService.Instance.Context;
+        using var db = new PharmacyWarehouseContext();
 
-        if (!context.Users.Any())
+        if (!db.Users.Any())
         {
-            context.Users.Add(new User
+            db.Users.Add(new User
             {
                 FullName = "Администратор",
                 Login = "admin",
@@ -86,7 +87,7 @@ public class AuthService
                 IsActive = true
             });
 
-            context.SaveChanges();
+            db.SaveChanges();
         }
     }
 

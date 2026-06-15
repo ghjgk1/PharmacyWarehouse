@@ -3,6 +3,7 @@ using Microsoft.Win32;
 using PharmacyWarehouse.Models;
 using PharmacyWarehouse.Services;
 using PharmacyWarehouse.Services.DocumentGeneration;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Controls;
@@ -27,17 +28,40 @@ public partial class InventoryEditWindow : Window
         _allLines = new ObservableCollection<InventoryLine>(inventory.InventoryLines);
         _filteredLines = new ObservableCollection<InventoryLine>(_allLines);
 
+        // Подписываемся на PropertyChanged для всех строк
+        foreach (var line in _allLines)
+        {
+            line.PropertyChanged += InventoryLine_PropertyChanged;
+        }
+
         txtTitle.Text = $"Акт инвентаризации №{inventory.Number}";
         txtSubtitle.Text = $"Дата: {inventory.InventoryDate:dd.MM.yyyy} | Статус: {inventory.Status}";
         dgLines.ItemsSource = _filteredLines;
 
         if (inventory.Status == "Completed")
         {
+            // Полностью отключаем редактирование для завершенных инвентаризаций
             btnComplete.IsEnabled = false;
             dgLines.IsReadOnly = true;
+            
+            // Скрываем кнопки сохранения и завершения, оставляем только экспорт
+            var saveButton = ((StackPanel)btnComplete.Parent).Children.OfType<Button>().FirstOrDefault(b => b.Content.ToString() == "Сохранить");
+            if (saveButton != null)
+                saveButton.Visibility = Visibility.Collapsed;
+            
+            btnComplete.Visibility = Visibility.Collapsed;
         }
 
         UpdateProgress();
+    }
+    
+    private void InventoryLine_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(InventoryLine.IsVerified) || 
+            e.PropertyName == nameof(InventoryLine.ActualQuantity))
+        {
+            UpdateProgress();
+        }
     }
 
     private void TxtSearch_TextChanged(object sender, TextChangedEventArgs e)
@@ -136,6 +160,11 @@ public partial class InventoryEditWindow : Window
         e.Handled = !char.IsDigit(e.Text[0]);
     }
 
+    private void TxtActual_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        UpdateProgress();
+    }
+
     private void TxtActual_PreviewKeyDown(object sender, KeyEventArgs e)
     {
         if (sender is TextBox textBox && e.Key == Key.Enter)
@@ -175,8 +204,36 @@ public partial class InventoryEditWindow : Window
         }
     }
 
-    private void Complete_Click(object sender, RoutedEventArgs e)
+    private async void Complete_Click(object sender, RoutedEventArgs e)
     {
+        // Step 4: Check if there are any differences first
+        var hasDifferences = _allLines.Any(l => l.Difference != 0);
+        if (!hasDifferences)
+        {
+            MessageBox.Show(
+                "Расхождений не обнаружено. Корректирующие документы не будут созданы.", 
+                "Информация", 
+                MessageBoxButton.OK, 
+                MessageBoxImage.Information);
+            
+            // Still complete the inventory even if no differences?
+            // Wait let's check the plan: "если ни одна строка не имеет Difference !=0, показать пользователю сообщение что расхождений нет и документы создаваться не будут"
+            // So let's still complete the inventory but tell user no docs were created
+            try
+            {
+                _inventoryService.SaveActualQuantities(_inventory.Id, _allLines.ToList());
+                await _inventoryService.CompleteInventoryAsync(_inventory.Id);
+                MessageBox.Show("Инвентаризация завершена. Расхождений не обнаружено.", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                DialogResult = true;
+                Close();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            return;
+        }
+
         var result = MessageBox.Show(
             "Завершить инвентаризацию? Будут созданы корректирующие документы для расхождений.",
             "Подтверждение", MessageBoxButton.YesNo, MessageBoxImage.Question);
@@ -186,8 +243,22 @@ public partial class InventoryEditWindow : Window
         try
         {
             _inventoryService.SaveActualQuantities(_inventory.Id, _allLines.ToList());
-            _inventoryService.CompleteInventory(_inventory.Id);
-            MessageBox.Show("Инвентаризация завершена", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+            var (writeOffCreated, receiptCreated, writeOffLines, receiptLines) = await _inventoryService.CompleteInventoryAsync(_inventory.Id);
+            
+            // Step 3: Show message with details
+            var messageParts = new List<string>();
+            messageParts.Add("Инвентаризация завершена.");
+            
+            if (writeOffCreated)
+                messageParts.Add($"Создан акт списания ({writeOffLines} позиций).");
+            if (receiptCreated)
+                messageParts.Add($"Создана приходная накладная ({receiptLines} позиций).");
+            if (!writeOffCreated && !receiptCreated)
+                messageParts.Add("Расхождений не обнаружено — документы не созданы.");
+
+            var message = string.Join("\n", messageParts);
+            
+            MessageBox.Show(message, "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
             DialogResult = true;
             Close();
         }

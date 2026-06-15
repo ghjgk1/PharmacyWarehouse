@@ -27,23 +27,69 @@ public partial class NotificationsPage : Page
 
     private void WriteOff_Click(object sender, RoutedEventArgs e)
     {
-        var product = (sender as Button)?.DataContext as Product;
-        if (product == null) return;
+        try
+        {
+            var product = (sender as Button)?.DataContext as Product;
+            if (product == null)
+            {
+                MessageBox.Show("Товар не найден.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
 
-        var mainWindow = Application.Current.MainWindow as MainWindow;
-        var writeOffPage = App.ServiceProvider.GetService<WriteOffPage>();
-        writeOffPage!.PreselectedProductId = product.Id;
-        mainWindow?.MainFrame.Navigate(writeOffPage);
+            var mainWindow = Application.Current.MainWindow as MainWindow;
+            if (mainWindow == null)
+            {
+                MessageBox.Show("Главное окно не найдено.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            var writeOffPage = App.ServiceProvider.GetService<WriteOffPage>();
+            if (writeOffPage == null)
+            {
+                MessageBox.Show("Страница списания не загружена.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            writeOffPage!.PreselectedProductId = product.Id;
+            mainWindow?.MainFrame.Navigate(writeOffPage);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     private void CreateReceipt_Click(object sender, RoutedEventArgs e)
     {
-        var product = (sender as Button)?.DataContext as Product;
-        if (product == null) return;
+        try
+        {
+            var product = (sender as Button)?.DataContext as Product;
+            if (product == null)
+            {
+                MessageBox.Show("Товар не найден.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
 
-        var mainWindow = Application.Current.MainWindow as MainWindow;
-        var receiptPage = App.ServiceProvider.GetService<ReceiptPage>();
-        receiptPage!.PreselectedProductId = product.Id;
-        mainWindow?.MainFrame.Navigate(receiptPage);
+            var mainWindow = Application.Current.MainWindow as MainWindow;
+            if (mainWindow == null)
+            {
+                MessageBox.Show("Главное окно не найдено.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            var receiptPage = App.ServiceProvider.GetService<ReceiptPage>();
+            if (receiptPage == null)
+            {
+                MessageBox.Show("Страница прихода не загружена.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            receiptPage!.PreselectedProductId = product.Id;
+            mainWindow?.MainFrame.Navigate(receiptPage);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 }

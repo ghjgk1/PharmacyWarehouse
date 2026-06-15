@@ -25,7 +25,7 @@ public class MdlpXmlGenerator
             new XElement(_ns + "signs",
                 document.DocumentLines.SelectMany(line =>
                 {
-                    string gtin = line.Product.Gtin?.PadLeft(14, '0') ?? new string('0', 14);
+                    string gtin = line.Product?.Gtin?.PadLeft(14, '0') ?? new string('0', 14);
                     return Enumerable.Range(0, line.Quantity).Select(i =>
                     {
                         string serialNumber = (i + 1).ToString("D13");
@@ -54,7 +54,7 @@ public class MdlpXmlGenerator
             new XElement(_ns + "signs",
                 document.DocumentLines.SelectMany(line =>
                 {
-                    string gtin = line.Product.Gtin?.PadLeft(14, '0') ?? new string('0', 14);
+                    string gtin = line.Product?.Gtin?.PadLeft(14, '0') ?? new string('0', 14);
                     return Enumerable.Range(0, line.Quantity).Select(i =>
                     {
                         string serialNumber = (i + 1).ToString("D13");
@@ -98,7 +98,7 @@ public class MdlpXmlGenerator
             new XElement(_ns + "signs",
                 document.DocumentLines.SelectMany(line =>
                 {
-                    string gtin = line.Product.Gtin?.PadLeft(14, '0') ?? new string('0', 14);
+                    string gtin = line.Product?.Gtin?.PadLeft(14, '0') ?? new string('0', 14);
                     return Enumerable.Range(0, line.Quantity).Select(i =>
                     {
                         string serialNumber = (i + 1).ToString("D13");

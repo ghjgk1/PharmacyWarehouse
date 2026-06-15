@@ -1,9 +1,13 @@
 <Window x:Class="PharmacyWarehouse.Windows.InventoryEditWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Инвентаризация" Height="700" Width="1200"
+        Title="Инвентаризация" 
         WindowStartupLocation="CenterOwner"
+        WindowState="Maximized"
         Background="{StaticResource BackgroundDarkBrush}">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+    </Window.Resources>
     <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -23,14 +27,14 @@
         <Border Grid.Row="1" Style="{StaticResource Card}" Padding="12" Margin="0,0,0,12">
             <StackPanel Orientation="Vertical">
                 <TextBox x:Name="txtSearch" 
-                         PlaceholderText="Поиск по названию, серии, производителю..." 
-                         Style="{StaticResource TextBox}"
+                         ToolTip="Поиск по названию, серии, производителю..." 
                          Margin="0,0,0,8"
                          TextChanged="TxtSearch_TextChanged"/>
                 
-                <StackPanel Orientation="Horizontal" Spacing="8">
+                <StackPanel Orientation="Horizontal">
                     <CheckBox x:Name="chkOnlyUnverified" 
                               Content="Только не проверенные" 
+                              Margin="0,0,8,0"
                               Checked="Filters_Changed"
                               Unchecked="Filters_Changed"/>
                     <CheckBox x:Name="chkOnlyDifferences" 
@@ -107,7 +111,7 @@
                                     Width="80"/>
                 
                 <!-- Actual Quantity + Quick Actions -->
-                <DataGridTemplateColumn Header="Фактический" Width="180">
+                <DataGridTemplateColumn Header="Фактический" Width="320">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <Grid>
@@ -118,37 +122,93 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 
+                                <!-- Кнопка -1 -->
                                 <Button Grid.Column="0" 
                                         Content="-1" 
-                                        Width="30" 
-                                        Height="28"
-                                        Style="{StaticResource OutlineButton}"
+                                        Width="3" 
+                                        Height="20"
+                                        Padding="0"
+                                        Margin="0"
+                                        FontSize="10"
                                         Click="BtnMinus_Click"
-                                        Tag="{Binding}"/>
+                                        Tag="{Binding}">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource OutlineButton}">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsTracked}" Value="True">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
                                 
+                                <!-- Текстовое поле -->
                                 <TextBox x:Name="txtActual" 
                                          Grid.Column="1"
                                          Margin="4,0"
                                          Padding="4"
                                          Text="{Binding ActualQuantity, UpdateSourceTrigger=PropertyChanged, TargetNullValue=''}"
                                          PreviewTextInput="TxtActual_PreviewTextInput"
-                                         PreviewKeyDown="TxtActual_PreviewKeyDown"/>
+                                         PreviewKeyDown="TxtActual_PreviewKeyDown"
+                                         TextChanged="TxtActual_TextChanged"
+                                         Width="60">
+                                    <TextBox.Style>
+                                        <Style TargetType="TextBox">
+                                            <Setter Property="IsReadOnly" Value="False"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsTracked}" Value="True">
+                                                    <Setter Property="IsReadOnly" Value="True"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBox.Style>
+                                </TextBox>
                                 
+                                <!-- Кнопка +1 -->
                                 <Button Grid.Column="2" 
                                         Content="+1" 
-                                        Width="30" 
-                                        Height="28"
-                                        Style="{StaticResource OutlineButton}"
+                                        Width="10" 
+                                        Height="20"
+                                        Padding="0"
+                                        Margin="0"
+                                        FontSize="10"
                                         Click="BtnPlus_Click"
-                                        Tag="{Binding}"/>
+                                        Tag="{Binding}">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource OutlineButton}">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsTracked}" Value="True">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
                                 
+                                <!-- Кнопка сброса -->
                                 <Button Grid.Column="3" 
                                         Content="0" 
-                                        Width="30" 
-                                        Height="28"
-                                        Style="{StaticResource DangerButton}"
+                                        Width="10" 
+                                        Height="20"
+                                        Padding="0"
+                                        Margin="10 0"
+                                        FontSize="10"
                                         Click="BtnReset_Click"
-                                        Tag="{Binding}"/>
+                                        Tag="{Binding}">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource DangerButton}">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsTracked}" Value="True">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
                             </Grid>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
@@ -179,14 +239,15 @@
                 </DataGridTextColumn>
 
                 <!-- MDLP Scan Button -->
-                <DataGridTemplateColumn Header="МДЛП" Width="80">
+                <DataGridTemplateColumn Header="МДЛП" Width="200">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <Button Content="Сканировать" 
                                     Style="{StaticResource OutlineButton}"
                                     Click="BtnScan_Click"
                                     Tag="{Binding}"
-                                    Visibility="{Binding Batch.Product.IsTracked, Converter={StaticResource BoolToVisibility}}"/>
+                                    Margin="0"
+                                    Visibility="{Binding IsTracked, Converter={StaticResource BoolToVisibilityConverter}}"/>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
@@ -194,13 +255,15 @@
         </DataGrid>
 
         <!-- Bottom Buttons -->
-        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right">
             <Button Content="Экспорт в Excel" 
                     Style="{StaticResource OutlineButton}"
-                    Click="Export_Click"/>
+                    Click="Export_Click"
+                    Margin="0,0,8,0"/>
             <Button Content="Сохранить" 
                     Style="{StaticResource PrimaryButton}"
-                    Click="Save_Click"/>
+                    Click="Save_Click"
+                    Margin="0,0,8,0"/>
             <Button x:Name="btnComplete" 
                     Content="Завершить инвентаризацию"
                     Style="{StaticResource SuccessButton}"

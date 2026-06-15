@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using PharmacyWarehouse.Models;
 using PharmacyWarehouse.Services;
 using System;
@@ -108,7 +108,7 @@ namespace PharmacyWarehouse.Windows
         private string GenerateCorrectionNumber()
         {
             var date = DateTime.Now;
-            var count = _documentService.GetDocumentsCount(date.Month, date.Year);
+            var count = _documentService.GetDocumentsCount(date.Month, date.Year, PharmacyWarehouse.Models.DocumentType.Correction);
             return $"КОР-{date:MMyy}-{count + 1:D4}";
         }
 

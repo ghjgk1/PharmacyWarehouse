@@ -21,6 +21,17 @@ public class MdlpMockService : IMdlpService
         _random = new Random();
     }
 
+    // Загружает документ с полными связями (строки + товары + поставщик)
+    private async Task<Document> LoadFullDocumentAsync(int documentId)
+    {
+        return await _context.Documents
+            .Include(d => d.Supplier)
+            .Include(d => d.DocumentLines)
+                .ThenInclude(l => l.Product)
+            .FirstOrDefaultAsync(d => d.Id == documentId)
+            ?? throw new InvalidOperationException($"Документ #{documentId} не найден");
+    }
+
     public async Task<MdlpDocument> SendReceiptAsync(Document document)
     {
         var settings = await _context.MdlpSettings.FirstOrDefaultAsync() ?? new MdlpSetting
@@ -34,47 +45,11 @@ public class MdlpMockService : IMdlpService
             MaxRetries = 3
         };
 
-        var (detErrorCode, detErrorDesc) = await _errorGenerator.CheckDeterministicErrorsAsync(document);
-        var (randErrorCode, randErrorDesc) = _errorGenerator.CheckRandomErrors(settings.SimulatedErrorRate);
-        var errorCode = detErrorCode ?? randErrorCode;
-        var errorDesc = detErrorDesc ?? randErrorDesc;
+        // Перезагружаем документ с полными связями, чтобы line.Product не был null
+        var fullDocument = await LoadFullDocumentAsync(document.Id);
 
-        string ticket = Guid.NewGuid().ToString();
-        string operationId = Guid.NewGuid().ToString();
-        string status = string.IsNullOrEmpty(errorCode) ? "Pending" : "Rejected";
-
-        var mdlpDocument = new MdlpDocument
-        {
-            DocumentId = document.Id,
-            MdlpDocumentId = Guid.NewGuid().ToString(),
-            OperationType = "Приёмка",
-            Status = status,
-            RequestXml = _xmlGenerator.GenerateSchema415(document, settings.SubjectId, document.Supplier?.Inn ?? "0000000000"),
-            ResponseXml = _xmlGenerator.GenerateResponseXml(ticket, operationId, status, DateTime.Now, errorCode, errorDesc),
-            Ticket = ticket,
-            SchemaVersion = "2.0",
-            ErrorCode = errorCode,
-            ErrorMessage = errorDesc,
-            ErrorDetails = errorDesc,
-            RetryCount = 0,
-            SentAt = DateTime.Now,
-            ProcessedAt = status == "Rejected" ? DateTime.Now : null,
-            CreatedAt = DateTime.Now
-        };
-
-        _context.MdlpDocuments.Add(mdlpDocument);
-
-        var history = new MdlpDocumentHistory
-        {
-            MdlpDocumentId = mdlpDocument.Id,
-            Status = status,
-            ChangedAt = DateTime.Now,
-            Comment = status == "Pending" ? "Документ отправлен в обработку" : "Документ отклонён"
-        };
-        _context.MdlpDocumentHistories.Add(history);
-
-        await _context.SaveChangesAsync();
-        return mdlpDocument;
+        var requestXml = _xmlGenerator.GenerateSchema415(fullDocument, settings.SubjectId, fullDocument.Supplier?.Inn ?? "0000000000");
+        return await ProcessDocumentAsync(fullDocument, "Income", requestXml, settings, null);
     }
 
     public async Task<MdlpDocument> SendOutgoingAsync(Document document)
@@ -90,47 +65,10 @@ public class MdlpMockService : IMdlpService
             MaxRetries = 3
         };
 
-        var (detErrorCode, detErrorDesc) = await _errorGenerator.CheckDeterministicErrorsAsync(document);
-        var (randErrorCode, randErrorDesc) = _errorGenerator.CheckRandomErrors(settings.SimulatedErrorRate);
-        var errorCode = detErrorCode ?? randErrorCode;
-        var errorDesc = detErrorDesc ?? randErrorDesc;
+        var fullDocument = await LoadFullDocumentAsync(document.Id);
 
-        string ticket = Guid.NewGuid().ToString();
-        string operationId = Guid.NewGuid().ToString();
-        string status = string.IsNullOrEmpty(errorCode) ? "Pending" : "Rejected";
-
-        var mdlpDocument = new MdlpDocument
-        {
-            DocumentId = document.Id,
-            MdlpDocumentId = Guid.NewGuid().ToString(),
-            OperationType = "Отгрузка",
-            Status = status,
-            RequestXml = _xmlGenerator.GenerateSchema416(document, settings.SubjectId),
-            ResponseXml = _xmlGenerator.GenerateResponseXml(ticket, operationId, status, DateTime.Now, errorCode, errorDesc),
-            Ticket = ticket,
-            SchemaVersion = "2.0",
-            ErrorCode = errorCode,
-            ErrorMessage = errorDesc,
-            ErrorDetails = errorDesc,
-            RetryCount = 0,
-            SentAt = DateTime.Now,
-            ProcessedAt = status == "Rejected" ? DateTime.Now : null,
-            CreatedAt = DateTime.Now
-        };
-
-        _context.MdlpDocuments.Add(mdlpDocument);
-
-        var history = new MdlpDocumentHistory
-        {
-            MdlpDocumentId = mdlpDocument.Id,
-            Status = status,
-            ChangedAt = DateTime.Now,
-            Comment = status == "Pending" ? "Документ отправлен в обработку" : "Документ отклонён"
-        };
-        _context.MdlpDocumentHistories.Add(history);
-
-        await _context.SaveChangesAsync();
-        return mdlpDocument;
+        var requestXml = _xmlGenerator.GenerateSchema416(fullDocument, settings.SubjectId);
+        return await ProcessDocumentAsync(fullDocument, "Outcome", requestXml, settings, null);
     }
 
     public async Task<MdlpDocument> SendWriteOffAsync(Document document)
@@ -146,46 +84,155 @@ public class MdlpMockService : IMdlpService
             MaxRetries = 3
         };
 
+        var fullDocument = await LoadFullDocumentAsync(document.Id);
+
+        var requestXml = _xmlGenerator.GenerateSchema552(fullDocument, settings.SubjectId);
+        return await ProcessDocumentAsync(fullDocument, "WriteOff", requestXml, settings, null);
+    }
+
+    public async Task<MdlpDocument> RetryDocumentAsync(MdlpDocument previousDocument)
+    {
+        var settings = await _context.MdlpSettings.FirstOrDefaultAsync() ?? new MdlpSetting
+        {
+            UseMock = true,
+            OrgInn = "7701010000",
+            OrgName = "ООО Аптека",
+            SubjectId = Guid.NewGuid().ToString(),
+            SimulatedDelaySeconds = 5,
+            SimulatedErrorRate = 10,
+            MaxRetries = 3
+        };
+
+        var document = await LoadFullDocumentAsync(previousDocument.DocumentId);
+        return await ProcessDocumentAsync(document, previousDocument.OperationType, previousDocument.RequestXml, settings, previousDocument);
+    }
+
+    private async Task<MdlpDocument> ProcessDocumentAsync(Document document, string operationType, string requestXml, MdlpSetting settings, MdlpDocument? previousDocument)
+    {
+        int retryCount = previousDocument?.RetryCount + 1 ?? 0;
+
+        // 1. Create the document in Pending status
+        var mdlpDocument = new MdlpDocument
+        {
+            DocumentId = document.Id,
+            PreviousMdlpDocumentId = previousDocument?.Id,
+            MdlpDocumentId = Guid.NewGuid().ToString(),
+            OperationType = operationType,
+            Status = "Pending",
+            RequestXml = requestXml,
+            Ticket = Guid.NewGuid().ToString(),
+            SchemaVersion = "2.0",
+            RetryCount = retryCount,
+            CreatedAt = DateTime.Now
+        };
+
+        _context.MdlpDocuments.Add(mdlpDocument);
+        await _context.SaveChangesAsync();
+
+        // Add history entry for Pending
+        var historyPending = new MdlpDocumentHistory
+        {
+            MdlpDocumentId = mdlpDocument.Id,
+            Status = "Pending",
+            ChangedAt = DateTime.Now,
+            Comment = "Ожидает отправки"
+        };
+        _context.MdlpDocumentHistories.Add(historyPending);
+        await _context.SaveChangesAsync();
+
+        // 2. Mark as Sent
+        mdlpDocument.Status = "Sent";
+        mdlpDocument.SentAt = DateTime.Now;
+
+        var historySent = new MdlpDocumentHistory
+        {
+            MdlpDocumentId = mdlpDocument.Id,
+            Status = "Sent",
+            ChangedAt = DateTime.Now,
+            Comment = "Документ отправлен в МДЛП"
+        };
+        _context.MdlpDocumentHistories.Add(historySent);
+        await _context.SaveChangesAsync();
+
+        // 3. Determine result (success or error)
         var (detErrorCode, detErrorDesc) = await _errorGenerator.CheckDeterministicErrorsAsync(document);
         var (randErrorCode, randErrorDesc) = _errorGenerator.CheckRandomErrors(settings.SimulatedErrorRate);
         var errorCode = detErrorCode ?? randErrorCode;
         var errorDesc = detErrorDesc ?? randErrorDesc;
 
-        string ticket = Guid.NewGuid().ToString();
+        string finalStatus;
         string operationId = Guid.NewGuid().ToString();
-        string status = string.IsNullOrEmpty(errorCode) ? "Pending" : "Rejected";
 
-        var mdlpDocument = new MdlpDocument
+        if (string.IsNullOrEmpty(errorCode))
         {
-            DocumentId = document.Id,
-            MdlpDocumentId = Guid.NewGuid().ToString(),
-            OperationType = "Списание",
-            Status = status,
-            RequestXml = _xmlGenerator.GenerateSchema552(document, settings.SubjectId),
-            ResponseXml = _xmlGenerator.GenerateResponseXml(ticket, operationId, status, DateTime.Now, errorCode, errorDesc),
-            Ticket = ticket,
-            SchemaVersion = "2.0",
-            ErrorCode = errorCode,
-            ErrorMessage = errorDesc,
-            ErrorDetails = errorDesc,
-            RetryCount = 0,
-            SentAt = DateTime.Now,
-            ProcessedAt = status == "Rejected" ? DateTime.Now : null,
-            CreatedAt = DateTime.Now
-        };
+            finalStatus = "Accepted";
+            mdlpDocument.Status = finalStatus;
+            mdlpDocument.ProcessedAt = DateTime.Now;
+            mdlpDocument.ResponseXml = _xmlGenerator.GenerateResponseXml(mdlpDocument.Ticket, operationId, finalStatus, DateTime.Now, null, null);
 
-        _context.MdlpDocuments.Add(mdlpDocument);
+            // Обновляем статусы SGTIN только после успешного подтверждения МДЛП
+            await UpdateSgtinStatusesAsync(document, operationType);
+        }
+        else
+        {
+            finalStatus = retryCount >= settings.MaxRetries ? "Error" : "Rejected";
+            mdlpDocument.Status = finalStatus;
+            mdlpDocument.ProcessedAt = DateTime.Now;
+            mdlpDocument.ErrorCode = errorCode;
+            mdlpDocument.ErrorMessage = errorDesc;
+            mdlpDocument.ErrorDetails = errorDesc;
+            mdlpDocument.ResponseXml = _xmlGenerator.GenerateResponseXml(mdlpDocument.Ticket, operationId, finalStatus, DateTime.Now, errorCode, errorDesc);
+        }
 
-        var history = new MdlpDocumentHistory
+        var historyFinal = new MdlpDocumentHistory
         {
             MdlpDocumentId = mdlpDocument.Id,
-            Status = status,
+            Status = finalStatus,
             ChangedAt = DateTime.Now,
-            Comment = status == "Pending" ? "Документ отправлен в обработку" : "Документ отклонён"
+            Comment = finalStatus == "Accepted" ? "Документ принят МДЛП" : $"Ошибка: {errorDesc}"
         };
-        _context.MdlpDocumentHistories.Add(history);
+        _context.MdlpDocumentHistories.Add(historyFinal);
+        await _context.SaveChangesAsync();
+
+        return mdlpDocument;
+    }
+
+    private async System.Threading.Tasks.Task UpdateSgtinStatusesAsync(Document document, string operationType)
+    {
+        // Строки уже загружены в LoadFullDocumentAsync, но на всякий случай проверяем
+        if (!document.DocumentLines.Any())
+        {
+            await _context.Entry(document)
+                .Collection(d => d.DocumentLines)
+                .LoadAsync();
+        }
+
+        foreach (var line in document.DocumentLines)
+        {
+            if (string.IsNullOrEmpty(line.Sgtin))
+                continue;
+
+            var sgtin = await _context.MdlpSgtins.FirstOrDefaultAsync(s => s.Sgtin == line.Sgtin);
+            if (sgtin == null)
+                continue;
+
+            sgtin.PreviousStatus = sgtin.Status;
+            sgtin.StatusChangedAt = DateTime.Now;
+
+            switch (operationType)
+            {
+                case "Income":
+                    sgtin.Status = "InCirculation";
+                    break;
+                case "Outcome":
+                    sgtin.Status = "RetailSold";
+                    break;
+                case "WriteOff":
+                    sgtin.Status = "WrittenOff";
+                    break;
+            }
+        }
 
         await _context.SaveChangesAsync();
-        return mdlpDocument;
     }
 }

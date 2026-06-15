@@ -8,7 +8,6 @@ namespace PharmacyWarehouse.Services
 {
     public class CategoryService
     {
-        private readonly PharmacyWarehouseContext _db = BaseDbService.Instance.Context;
         public ObservableCollection<Category> Categories { get; set; } = new();
 
         public CategoryService()
@@ -16,24 +15,26 @@ namespace PharmacyWarehouse.Services
             GetAll();
         }
 
-        public int Commit() => _db.SaveChanges();
-
         public void Add(Category category)
         {
+            using var db = new PharmacyWarehouseContext();
             var _category = new Category
             {
                 Name = category.Name,
                 Description = category.Description
             };
 
-            _db.Categories.Add(_category);
-            if (Commit() > 0)
-                Categories.Add(_category);
+            db.Categories.Add(_category);
+            if (db.SaveChanges() > 0)
+            {
+                GetAll();
+            }
         }
 
         public void GetAll()
         {
-            var categories = _db.Categories
+            using var db = new PharmacyWarehouseContext();
+            var categories = db.Categories
                 .Include(c => c.Products)
                 .ToList();
 
@@ -46,19 +47,22 @@ namespace PharmacyWarehouse.Services
 
         public void Remove(Category category)
         {
-            var existing = _db.Categories.Find(category.Id);
+            using var db = new PharmacyWarehouseContext();
+            var existing = db.Categories.Find(category.Id);
             if (existing != null)
             {
-                _db.Categories.Remove(existing);
-                if (Commit() > 0)
-                    if (Categories.Contains(category))
-                        Categories.Remove(category);
+                db.Categories.Remove(existing);
+                if (db.SaveChanges() > 0)
+                {
+                    GetAll();
+                }
             }
         }
 
         public Category? GetById(int id)
         {
-            return _db.Categories
+            using var db = new PharmacyWarehouseContext();
+            return db.Categories
                 .Include(c => c.Products)
                 .FirstOrDefault(c => c.Id == id);
         }
@@ -70,7 +74,8 @@ namespace PharmacyWarehouse.Services
                 return Categories;
             }
 
-            var filtered = _db.Categories
+            using var db = new PharmacyWarehouseContext();
+            var filtered = db.Categories
                 .Include(c => c.Products)
                 .Where(c => c.Name.Contains(searchTerm) ||
                            (c.Description != null && c.Description.Contains(searchTerm)))
@@ -82,14 +87,16 @@ namespace PharmacyWarehouse.Services
 
         public void Update(Category category)
         {
-            var existing = _db.Categories.Find(category.Id);
+            using var db = new PharmacyWarehouseContext();
+            var existing = db.Categories.Find(category.Id);
             if (existing != null)
             {
                 existing.Name = category.Name;
                 existing.Description = category.Description;
 
-                _db.Categories.Update(existing);
-                Commit();
+                db.Categories.Update(existing);
+                db.SaveChanges();
+                GetAll();
             }
         }
     }

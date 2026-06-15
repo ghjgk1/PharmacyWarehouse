@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using PharmacyWarehouse.Models;
 using PharmacyWarehouse.Services;
@@ -181,27 +181,18 @@ namespace PharmacyWarehouse.Pages
                 }
 
                 // Обновляем свойства
-                categoryToUpdate.Name = txtCategoryName.Text.Trim();
-                categoryToUpdate.Description = txtCategoryDescription.Text?.Trim();
-
-                // Сохраняем изменения
-                var result = Service.Commit();
-
-                if (result > 0)
+                Service.Update(new Category
                 {
-                    // Обновляем в коллекции
-                    var index = Service.Categories.IndexOf(SelectedCategory);
-                    if (index >= 0)
-                    {
-                        Service.Categories[index] = categoryToUpdate;
-                    }
+                    Id = SelectedCategory.Id,
+                    Name = txtCategoryName.Text.Trim(),
+                    Description = txtCategoryDescription.Text?.Trim()
+                });
 
-                    // Обновляем интерфейс
-                    LoadCategories();
+                // Обновляем интерфейс
+                LoadCategories();
 
-                    MessageBox.Show("Категория успешно обновлена", "Успех",
-                        MessageBoxButton.OK, MessageBoxImage.Information);
-                }
+                MessageBox.Show("Категория успешно обновлена", "Успех",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {

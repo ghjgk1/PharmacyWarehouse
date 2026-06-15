@@ -23,7 +23,7 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
     private readonly BatchService _batchService;
     private readonly AuthService _authService;
     private readonly IMdlpService _mdlpService;
-    private readonly PharmacyWarehouseContext _context = BaseDbService.Instance.Context;
+
 
     private Document _currentDocument;
     private ObservableCollection<DocumentLine> _documentItems;
@@ -43,6 +43,7 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
     private string _currentUser = String.Empty;
 
     public int? PreselectedProductId { get; set; }
+    public string? RestrictedGtin { get; set; }
 
     public WriteOffPage(int? documentId = null, Batch? selectedBatch = null)
     {
@@ -116,10 +117,10 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
             Status = DocumentStatus.Draft,
             CreatedBy = _currentUser,
             CreatedAt = DateTime.Now,
-            Number = GenerateDocumentNumber()
+            Number = string.Empty
         };
 
-        txtDocNumber.Text = _currentDocument.Number;
+        txtDocNumber.Text = "(будет сгенерирован при сохранении)";
         dpWriteOffDate.SelectedDate = _currentDocument.Date;
         txtResponsiblePerson.Text = _currentUser;
         txtCommission.Text = $"Состав комиссии: {_currentUser}";
@@ -129,66 +130,79 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
 
         _documentItems.Clear();
         UpdateDocumentTotals();
-        ResetItemForm();
+        ResetScanField();
     }
 
     private async void ApplyPreselectedProduct()
+    {
+        if (!PreselectedProductId.HasValue) return;
+
+        // Ждем загрузки данных
+        await Task.Delay(100);
+        
+        // Пытаемся найти товар сначала в списке товаров с остатком, затем в общем списке
+        var product = _productsWithStock.FirstOrDefault(p => p.Id == PreselectedProductId.Value);
+        if (product == null)
         {
-            if (!PreselectedProductId.HasValue) return;
-
-            // Ждем загрузки данных
-            await Task.Delay(100);
-            
-            // Пытаемся найти товар сначала в списке товаров с остатком, затем в общем списке
-            var product = _productsWithStock.FirstOrDefault(p => p.Id == PreselectedProductId.Value);
-            if (product == null)
-            {
-                product = _allProducts.FirstOrDefault(p => p.Id == PreselectedProductId.Value);
-            }
-            
-            if (product == null)
-            {
-                // Если не найдено, попробуем загрузить из БД
-                product = await _context.Products.FirstOrDefaultAsync(p => p.Id == PreselectedProductId.Value);
-                if (product != null)
-                {
-                    // Проверим, есть ли у него остаток
-                    var hasStock = _batchService.GetByProduct(product.Id)
-                        .Any(b => b.IsActive && b.Quantity > 0);
-                        
-                    // Добавим в списки
-                    _allProducts.Add(product);
-                    _allProductsObservable.Add(product);
-                    
-                    if (hasStock)
-                    {
-                        _productsWithStock.Add(product);
-                    }
-                    
-                    _filteredProductsView?.Refresh();
-                }
-            }
-
+            product = _allProducts.FirstOrDefault(p => p.Id == PreselectedProductId.Value);
+        }
+        
+        if (product == null)
+        {
+            // Если не найдено, попробуем загрузить из БД
+            using var db1 = new PharmacyWarehouseContext();
+            product = await db1.Products.FirstOrDefaultAsync(p => p.Id == PreselectedProductId.Value);
             if (product != null)
             {
-                Dispatcher.Invoke(() =>
+                // Проверим, есть ли у него остаток
+                var hasStock = _batchService.GetByProduct(product.Id)
+                    .Any(b => b.IsActive && b.Quantity > 0);
+                        
+                // Добавим в списки
+                _allProducts.Add(product);
+                _allProductsObservable.Add(product);
+                
+                if (hasStock)
                 {
-                    cmbProduct.SelectedItem = product;
-                    // После выбора товара автоматически выбираем первую доступную партию (для немаркированных)
-                    // или загружаем SGTIN (для маркированных)
-                    if (!product.IsTracked)
-                    {
-                        LoadAvailableBatches(product.Id);
-                    }
-                });
+                    _productsWithStock.Add(product);
+                }
+                
+                _filteredProductsView?.Refresh();
             }
-            else
-            {
-                MessageBox.Show($"Товар с ID {PreselectedProductId.Value} не найден", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-
-            PreselectedProductId = null;
         }
+
+        if (product != null)
+        {
+            RestrictedGtin = product.Gtin;
+            
+            Dispatcher.Invoke(() =>
+            {
+                cmbProduct.SelectedItem = product;
+                // После выбора товара автоматически выбираем первую доступную партию (для немаркированных)
+                // или загружаем SGTIN (для маркированных)
+                if (product.IsTracked)
+                {
+                    // Для маркированных: фокус на сканер
+                    cmbProduct.IsEnabled = false;
+                    if (cmbSgtin.ItemsSource != null && cmbSgtin.Items.Count > 0)
+                    {
+                        cmbSgtin.SelectedIndex = 0;
+                    }
+                    Dispatcher.BeginInvoke(() => txtScanCode.Focus());
+                }
+                else
+                {
+                    LoadAvailableBatches(product.Id);
+                }
+            });
+        }
+        else
+        {
+            MessageBox.Show($"Товар с ID {PreselectedProductId.Value} не найден", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+
+        PreselectedProductId = null;
+    }
 
     private void PrefillWithBatch(Batch batch)
     {
@@ -239,7 +253,8 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
             _currentDocument = draft;
 
             // Проверяем, был ли документ уже отправлен в МДЛП
-            var existingMdlpDoc = await _context.MdlpDocuments
+            using var db2 = new PharmacyWarehouseContext();
+            var existingMdlpDoc = await db2.MdlpDocuments
                 .FirstOrDefaultAsync(d => d.DocumentId == _currentDocument.Id);
 
             if (existingMdlpDoc != null)
@@ -277,6 +292,8 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
             _documentItems.Clear();
             foreach (var line in draft.DocumentLines)
             {
+                var product = _allProductsObservable.FirstOrDefault(p => p.Id == line.ProductId);
+                line.Product = product;
                 _documentItems.Add(line);
             }
 
@@ -332,11 +349,11 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
     private void InitializeReasons()
     {
         cmbReason.Items.Clear();
-        cmbReason.Items.Add(new ComboBoxItem { Content = "Просроченный срок годности" });
-        cmbReason.Items.Add(new ComboBoxItem { Content = "Бой/порча товара" });
-        cmbReason.Items.Add(new ComboBoxItem { Content = "Естественная убыль" });
-        cmbReason.Items.Add(new ComboBoxItem { Content = "Контрольная закупка" });
-        cmbReason.Items.Add(new ComboBoxItem { Content = "Другая причина" });
+        cmbReason.Items.Add(new ComboBoxItem { Content = "Просроченный срок годности", Tag = WriteOffReason.Expired });
+        cmbReason.Items.Add(new ComboBoxItem { Content = "Бой/порча товара", Tag = WriteOffReason.Damaged });
+        cmbReason.Items.Add(new ComboBoxItem { Content = "Естественная убыль", Tag = WriteOffReason.Other });
+        cmbReason.Items.Add(new ComboBoxItem { Content = "Контрольная закупка", Tag = WriteOffReason.Other });
+        cmbReason.Items.Add(new ComboBoxItem { Content = "Другая причина", Tag = WriteOffReason.Other });
     }
 
     private bool FilterProduct(object obj)
@@ -353,7 +370,7 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
     private string GenerateDocumentNumber()
     {
         var date = DateTime.Now;
-        var count = _documentService.GetDocumentsCount(date.Month, date.Year);
+        var count = _documentService.GetDocumentsCount(date.Month, date.Year, PharmacyWarehouse.Models.DocumentType.WriteOff);
         return $"АС-{date:MMyy}-{count + 1:D4}";
     }
 
@@ -376,14 +393,31 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
         if (selectedProduct.IsTracked)
         {
             // Валидация для маркированных товаров
-            if (cmbSgtin.SelectedItem is not MdlpSgtin selectedSgtin)
+            string sgtin = null;
+            if (cmbSgtin.SelectedItem is MdlpSgtin selectedSgtin)
             {
-                ShowError("Ошибка", "Выберите код маркировки (SGTIN)");
+                sgtin = selectedSgtin.Sgtin;
+            }
+            else if (!string.IsNullOrWhiteSpace(txtSgtinManual.Text))
+            {
+                sgtin = txtSgtinManual.Text.Trim();
+                // Проверяем, что такой SGTIN существует и имеет нужный статус
+                using var db3 = new PharmacyWarehouseContext();
+                var existingSgtinDb = db3.MdlpSgtins.FirstOrDefault(s => s.Sgtin == sgtin && s.Status == "InCirculation" && s.ProductId == selectedProduct.Id);
+                if (existingSgtinDb == null)
+                {
+                    ShowError("Ошибка", "Код маркировки не найден, неактивен или принадлежит другому товару");
+                    return;
+                }
+            }
+            else
+            {
+                ShowError("Ошибка", "Выберите или введите код маркировки (SGTIN)");
                 return;
             }
 
             // Проверяем, не использован ли уже этот SGTIN в документе
-            var existingInDoc = _documentItems.Any(item => item.Sgtin == selectedSgtin.Sgtin);
+            var existingInDoc = _documentItems.Any(item => item.Sgtin == sgtin);
             if (existingInDoc)
             {
                 ShowError("Ошибка", "Этот код маркировки уже добавлен в документ");
@@ -393,7 +427,19 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
             try
             {
                 // Находим партию для этого SGTIN
-                var selectedBatch = _batchService.GetById(selectedSgtin.BatchId);
+                using var db4 = new PharmacyWarehouseContext();
+                var sgtinObj = db4.MdlpSgtins
+                    .Include(s => s.Batch)
+                    .FirstOrDefault(s => s.Sgtin == sgtin);
+                if (sgtinObj == null)
+                {
+                    ShowError("Ошибка", "SGTIN не найден в базе данных");
+                    return;
+                }
+                // Load batch
+                var batchId = sgtinObj.BatchId; // Now int?
+                Batch? selectedBatch = sgtinObj.Batch;
+                sgtinObj.Batch = selectedBatch;
                 if (selectedBatch == null)
                 {
                     ShowError("Ошибка", "Партия для SGTIN не найдена");
@@ -411,16 +457,22 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
                     ExpirationDate = selectedBatch.ExpirationDate,
                     SourceBatchId = selectedBatch.Id,
                     Notes = $"Списание",
-                    Sgtin = selectedSgtin.Sgtin
+                    Sgtin = sgtin
                 };
 
                 _documentItems.Add(documentLine);
 
-                // Сбрасываем форму
-                ResetItemForm();
+                // Если партия просрочена, автоматически выбираем причину списания
+                if (selectedBatch.IsExpired)
+                {
+                    AutoSelectExpiredReason();
+                }
+
+                // Сбрасываем форму и возвращаем фокус на сканер
+                ResetScanField();
 
                 UpdateDocumentTotals();
-                ShowInfo($"Товар '{selectedProduct.Name}' добавлен в акт списания с SGTIN: {selectedSgtin.Sgtin}");
+                ShowInfo($"Товар '{selectedProduct.Name}' добавлен в акт списания с SGTIN: {sgtin}");
             }
             catch (Exception ex)
             {
@@ -457,26 +509,47 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
 
             try
             {
-                var documentLine = new DocumentLine
+                // Пытаемся найти существующую строку с тем же товаром и партией (немаркированным) и объединяем
+                var existingLine = _documentItems
+                    .FirstOrDefault(item => item.ProductId == selectedProduct.Id &&
+                                           string.IsNullOrEmpty(item.Sgtin) &&
+                                           item.SourceBatchId == selectedBatch.Id);
+
+                if (existingLine != null)
                 {
-                    ProductId = selectedProduct.Id,
-                    Product = selectedProduct,
-                    Quantity = quantity,
-                    UnitPrice = selectedBatch.SellingPrice,
-                    SellingPrice = selectedBatch.SellingPrice,
-                    Series = selectedBatch.Series,
-                    ExpirationDate = selectedBatch.ExpirationDate,
-                    SourceBatchId = selectedBatch.Id,
-                    Notes = $"Списание",
-                };
+                    // Объединяем: увеличиваем количество
+                    existingLine.Quantity += quantity;
+                    ShowInfo($"Количество товара '{selectedProduct.Name}' увеличено до {existingLine.Quantity} шт.");
+                }
+                else
+                {
+                    var documentLine = new DocumentLine
+                    {
+                        ProductId = selectedProduct.Id,
+                        Product = selectedProduct,
+                        Quantity = quantity,
+                        UnitPrice = selectedBatch.SellingPrice,
+                        SellingPrice = selectedBatch.SellingPrice,
+                        Series = selectedBatch.Series,
+                        ExpirationDate = selectedBatch.ExpirationDate,
+                        SourceBatchId = selectedBatch.Id,
+                        Notes = $"Списание",
+                    };
 
-                _documentItems.Add(documentLine);
+                    _documentItems.Add(documentLine);
+                    ShowInfo($"Товар '{selectedProduct.Name}' добавлен в акт списания");
+                }
 
-                // Сбрасываем форму
-                ResetItemForm();
+                // Если партия просрочена, автоматически выбираем причину списания
+                if (selectedBatch.IsExpired)
+                {
+                    AutoSelectExpiredReason();
+                }
+
+                // Сбрасываем форму и возвращаем фокус на сканер
+                ResetScanField();
 
                 UpdateDocumentTotals();
-                ShowInfo($"Товар '{selectedProduct.Name}' добавлен в акт списания");
             }
             catch (Exception ex)
             {
@@ -570,6 +643,8 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
         cmbBatchSeries.Visibility = Visibility.Visible;
         lblSgtin.Visibility = Visibility.Collapsed;
         cmbSgtin.Visibility = Visibility.Collapsed;
+        txtSgtinManual.Visibility = Visibility.Collapsed;
+        txtSgtinManual.Text = "";
         cmbSgtin.ItemsSource = null;
         cmbSgtin.SelectedItem = null;
 
@@ -618,12 +693,14 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
                 // Для маркированных товаров: показываем SGTIN, скрываем и блокируем количество, скрываем cmbBatchSeries
                 lblSgtin.Visibility = Visibility.Visible;
                 cmbSgtin.Visibility = Visibility.Visible;
+                txtSgtinManual.Visibility = Visibility.Visible;
                 txtQuantity.Text = "1";
                 txtQuantity.IsEnabled = false;
                 cmbBatchSeries.Visibility = Visibility.Collapsed;
 
                 // Загружаем доступные SGTIN для этого товара (статус InCirculation)
-                var availableSgtins = _context.MdlpSgtins
+                using var db5 = new PharmacyWarehouseContext();
+                var availableSgtins = db5.MdlpSgtins
                     .Include(s => s.Batch)
                     .Where(s => s.ProductId == product.Id && s.Status == "InCirculation")
                     .ToList();
@@ -655,6 +732,12 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
             _selectedBatch = batch;
             txtExpirationDate.Text = batch.ExpirationDate.ToString("dd.MM.yyyy") ?? "-";
             txtAvailableQuantity.Text = batch.Quantity.ToString("N0");
+
+            // Если партия просрочена, автоматически выбираем причину списания
+            if (batch.IsExpired)
+            {
+                AutoSelectExpiredReason();
+            }
         }
         else
         {
@@ -675,6 +758,200 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
         if (_availableBatches.Any())
         {
             cmbBatchSeries.SelectedIndex = 0;
+        }
+    }
+
+    private void TxtScanCode_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter)
+            return;
+
+        e.Handled = true;
+        ProcessScanCode(txtScanCode.Text.Trim());
+    }
+
+    private void ProcessScanCode(string code)
+    {
+        // Скрываем предыдущую ошибку
+        txtScanError.Visibility = Visibility.Collapsed;
+
+        // Проверка: это DataMatrix? (если код длинный или содержит специальные символы)
+        if (code.Length > 20 || code.Contains("\x1D"))
+        {
+            ProcessDataMatrix(code);
+            return;
+        }
+
+        // Проверка: это GTIN (13 или 14 цифр)
+        if (code.All(char.IsDigit) && (code.Length == 13 || code.Length == 14))
+        {
+            ProcessGtin(code);
+            return;
+        }
+
+        // Если код не распознан
+        ShowScanError("Код не распознан. Введите GTIN (13-14 цифр) или сканируйте DataMatrix.");
+    }
+
+    private void ProcessDataMatrix(string code)
+    {
+        var result = DataMatrixParser.Parse(code);
+        if (!result.IsValid)
+        {
+            ShowScanError(result.ErrorMessage ?? "Некорректный DataMatrix код.");
+            return;
+        }
+
+        if (string.IsNullOrEmpty(result.Sgtin))
+        {
+            ShowScanError("DataMatrix код не содержит SGTIN.");
+            return;
+        }
+
+        string gtinFromSgtin = result.Sgtin.Substring(0, 14);
+        
+        // Проверка на ограничение по GTIN
+        if (!string.IsNullOrEmpty(RestrictedGtin) && gtinFromSgtin != RestrictedGtin)
+        {
+            ShowScanError($"Пожалуйста, сканируйте только выбранный товар (GTIN: {RestrictedGtin})");
+            return;
+        }
+
+        // Ищем SGTIN в базе
+        using var db6 = new PharmacyWarehouseContext();
+        var sgtinObj = db6.MdlpSgtins
+            .Include(s => s.Batch)
+            .FirstOrDefault(s => s.Sgtin == result.Sgtin && s.Status == "InCirculation");
+
+        if (sgtinObj == null)
+        {
+            ShowScanError("Маркированный товар не найден или не в обороте.");
+            return;
+        }
+
+        // Get the product via ProductId
+        var product = _productsWithStock.FirstOrDefault(p => p.Id == sgtinObj.ProductId);
+        if (product == null)
+        {
+            product = _allProducts.FirstOrDefault(p => p.Id == sgtinObj.ProductId);
+        }
+
+        // Проверяем, не добавлен ли уже этот SGTIN в документ
+        if (_documentItems.Any(item => item.Sgtin == result.Sgtin))
+        {
+            ShowScanError("Этот маркированный товар уже добавлен в документ.");
+            return;
+        }
+
+        // Добавляем маркированный товар автоматически
+        var documentLine = new DocumentLine
+        {
+            ProductId = product.Id,
+            Product = product,
+            Quantity = 1,
+            UnitPrice = sgtinObj.Batch?.SellingPrice ?? 0m,
+            SellingPrice = sgtinObj.Batch?.SellingPrice ?? 0m,
+            Series = sgtinObj.Batch?.Series,
+            ExpirationDate = sgtinObj.Batch?.ExpirationDate,
+            SourceBatchId = sgtinObj.Batch?.Id,
+            Notes = "Списание",
+            Sgtin = result.Sgtin
+        };
+
+        _documentItems.Add(documentLine);
+
+        // Если партия просрочена, автоматически выбираем причину списания
+        if (sgtinObj.Batch?.IsExpired ?? false)
+        {
+            AutoSelectExpiredReason();
+        }
+
+        UpdateDocumentTotals();
+
+        // Очищаем поле и возвращаем фокус
+        ResetScanField();
+    }
+
+    private void ProcessGtin(string gtin)
+    {
+        // Проверка на ограничение по GTIN
+        if (!string.IsNullOrEmpty(RestrictedGtin) && gtin != RestrictedGtin)
+        {
+            ShowScanError($"Пожалуйста, сканируйте только выбранный товар (GTIN: {RestrictedGtin})");
+            return;
+        }
+        
+        // Ищем товар по GTIN
+        var product = _productsWithStock.FirstOrDefault(p => p.Gtin == gtin);
+        if (product == null)
+        {
+            ShowScanError("Товар с таким GTIN не найден или нет на складе.");
+            return;
+        }
+
+        // Выбираем товар в комбобоксе
+        cmbProduct.SelectedItem = product;
+
+        // Для маркированных товаров нужно выбрать SGTIN, но мы оставим поле сканирования с фокусом
+        if (product.IsTracked)
+        {
+            txtScanError.Text = "Товар найден. Пожалуйста, сканируйте DataMatrix для выбора конкретной упаковки.";
+            txtScanError.Foreground = System.Windows.Media.Brushes.Blue;
+            txtScanError.Visibility = Visibility.Visible;
+            Dispatcher.BeginInvoke(() => txtScanCode.Focus());
+            return;
+        }
+
+        // Для немаркированных товаров: подготавливаем форму к добавлению
+        if (int.TryParse(txtQuantity.Text, out int quantity) && quantity <= 0)
+            quantity = 1;
+
+        // Загружаем доступные партии
+        LoadAvailableBatches(product.Id);
+
+        // Проверяем, есть ли просроченная партия, чтобы автоматом выбрать причину
+        var earliestBatch = _batchService.GetByProduct(product.Id)
+            .Where(b => b.IsActive && b.Quantity > 0)
+            .OrderBy(b => b.ExpirationDate)
+            .FirstOrDefault();
+
+        if (earliestBatch?.IsExpired ?? false)
+        {
+            AutoSelectExpiredReason();
+        }
+
+        txtScanCode.Text = "";
+        txtScanError.Visibility = Visibility.Collapsed;
+        Dispatcher.BeginInvoke(() => txtQuantity.Focus());
+        txtQuantity.SelectAll();
+    }
+
+    private void ShowScanError(string message)
+    {
+        txtScanError.Text = message;
+        txtScanError.Visibility = Visibility.Visible;
+        // Не очищаем поле, чтобы пользователь видел, что не распозналось
+        Dispatcher.BeginInvoke(() => txtScanCode.Focus());
+    }
+
+    private void ResetScanField()
+    {
+        txtScanCode.Text = "";
+        txtScanError.Visibility = Visibility.Collapsed;
+        ResetItemForm();
+        Dispatcher.BeginInvoke(() => txtScanCode.Focus());
+    }
+
+    private void AutoSelectExpiredReason()
+    {
+        // Ищем причину "Просроченный срок годности" в комбобоксе
+        foreach (ComboBoxItem item in cmbReason.Items)
+        {
+            if (item.Content?.ToString()?.Contains("Просроченный") ?? false)
+            {
+                cmbReason.SelectedItem = item;
+                break;
+            }
         }
     }
 
@@ -703,13 +980,17 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
             // Обновляем данные документа
             _currentDocument.Date = dpWriteOffDate.SelectedDate ?? DateTime.Now;
             _currentDocument.CustomerName = txtResponsiblePerson.Text;
+            if (cmbReason.SelectedItem is ComboBoxItem selectedReasonItem)
+            {
+                _currentDocument.WriteOffReason = (WriteOffReason?)selectedReasonItem.Tag;
+            }
             _currentDocument.Notes = $"{((ComboBoxItem)cmbReason.SelectedItem)?.Content ?? "Не указана"}" +
                                    (!string.IsNullOrWhiteSpace(txtNotes.Text) ? $"\n{txtNotes.Text}" : "") +
                                    (!string.IsNullOrWhiteSpace(txtCommission.Text) ? $"\n{txtCommission.Text}" : "");
             _currentDocument.Status = DocumentStatus.Draft;
             _currentDocument.Amount = _documentTotal;
 
-            // Создаем список строк документа
+            // Создаем список строк документа (не копируем ID, сервис создаёт новые строки)
             var documentLines = new List<DocumentLine>();
             foreach (var item in _documentItems)
             {
@@ -726,20 +1007,15 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
                     Sgtin = item.Sgtin
                 };
 
-                // Если это редактирование существующей строки, сохраняем ID
-                if (item.Id != 0)
-                {
-                    line.Id = item.Id;
-                }
-
                 documentLines.Add(line);
             }
 
             // Сохраняем документ
             int documentId = _documentService.CreateWriteOff(_currentDocument, documentLines);
 
-            // Обновляем ID текущего документа
+            // Обновляем ID текущего документа и UI
             _currentDocument.Id = documentId;
+            txtDocNumber.Text = _currentDocument.Number;
 
             ShowInfo($"Черновик акта списания сохранен. Номер: {_currentDocument.Number}");
         }
@@ -776,6 +1052,10 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
                 // Обновляем данные документа
                 _currentDocument.Date = dpWriteOffDate.SelectedDate ?? DateTime.Now;
                 _currentDocument.CustomerName = txtResponsiblePerson.Text;
+                if (cmbReason.SelectedItem is ComboBoxItem selectedReasonItem)
+                {
+                    _currentDocument.WriteOffReason = (WriteOffReason?)selectedReasonItem.Tag;
+                }
                 _currentDocument.Notes = $"{((ComboBoxItem)cmbReason.SelectedItem)?.Content ?? "Не указана"}" +
                                        (!string.IsNullOrWhiteSpace(txtNotes.Text) ? $"\n{txtNotes.Text}" : "") +
                                        (!string.IsNullOrWhiteSpace(txtCommission.Text) ? $"\n{txtCommission.Text}" : "");
@@ -807,6 +1087,7 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
                 {
                     documentId = _documentService.CreateWriteOff(_currentDocument, documentLines);
                     _currentDocument.Id = documentId;
+                    txtDocNumber.Text = _currentDocument.Number;
                 }
                 else // Редактирование существующего
                 {
@@ -816,7 +1097,8 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
                 }
 
                 // Проверяем, был ли документ уже отправлен в МДЛП
-                var existingMdlpDoc = await _context.MdlpDocuments
+                using var db7 = new PharmacyWarehouseContext();
+                var existingMdlpDoc = await db7.MdlpDocuments
                     .FirstOrDefaultAsync(d => d.DocumentId == _currentDocument.Id);
 
                 if (existingMdlpDoc != null)
@@ -831,8 +1113,10 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
                 var mdlpResult = await _mdlpService.SendWriteOffAsync(_currentDocument);
                 string mdlpStatusText = mdlpResult.Status == "Accepted" ? "Принято" : "Ожидает обработки";
 
-                ShowInfo($"Акт списания проведен успешно!\nНомер: {_currentDocument.Number}\nID: {documentId}\nМДЛП: {mdlpStatusText} (ID: {mdlpResult.MdlpDocumentId})");
-                InitializeNewDocument();
+                MessageBox.Show($"Акт списания проведен успешно!\nНомер: {_currentDocument.Number}\nID: {documentId}\nМДЛП: {mdlpStatusText} (ID: {mdlpResult.MdlpDocumentId})",
+                    "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                
+                NavigateToDocumentsPage();
             }
             catch (Exception ex)
             {
@@ -874,6 +1158,16 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
 
         InitializeNewDocument();
         ShowInfo("Акт списания отменен");
+    }
+
+    private void NavigateToDocumentsPage()
+    {
+        var mainWindow = Application.Current.MainWindow as MainWindow;
+        if (mainWindow != null)
+        {
+            var documentsPage = App.ServiceProvider.GetService<DocumentsPage>();
+            mainWindow.MainFrame.Navigate(documentsPage);
+        }
     }
 
     #endregion

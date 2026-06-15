@@ -30,4 +30,9 @@ public class MdlpRealService : IMdlpService
     {
         throw new NotImplementedException("Реальный МДЛП API не подключён. Используйте Mock-режим в настройках.");
     }
+
+    public Task<MdlpDocument> RetryDocumentAsync(MdlpDocument document)
+    {
+        throw new NotImplementedException("Реальный МДЛП API не подключён. Используйте Mock-режим в настройках.");
+    }
 }

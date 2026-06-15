@@ -25,12 +25,14 @@
                                 <DataGridTextColumn Header="Наименование" Binding="{Binding Name}" Width="*"/>
                                 <DataGridTextColumn Header="Производитель" Binding="{Binding Manufacturer}" Width="150"/>
                                 <DataGridTextColumn Header="Текущий остаток" Binding="{Binding CurrentStock}" Width="120"/>
-                                <DataGridTemplateColumn Header="Действие" Width="130">
+                                <DataGridTemplateColumn Header="Действие" Width="150">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <Button Content="📥 Приход"
                                                     Style="{StaticResource PrimaryButton}"
                                                     Padding="6,2"
+                                                                                                        Margin="0"
+
                                                     Click="CreateReceipt_Click"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
@@ -54,13 +56,15 @@
                                 <DataGridTextColumn Header="Наименование" Binding="{Binding Name}" Width="*"/>
                                 <DataGridTextColumn Header="Производитель" Binding="{Binding Manufacturer}" Width="150"/>
                                 <DataGridTextColumn Header="Ближайшая дата истечения"
-                                                    Binding="{Binding NearestExpirationDate, StringFormat='dd.MM.yyyy'}" Width="160"/>
-                                <DataGridTemplateColumn Header="Действие" Width="130">
+                                                    Binding="{Binding NearestExpirationDate, StringFormat='dd.MM.yyyy'}" Width="180"/>
+                                <DataGridTemplateColumn Header="Действие" Width="150">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <Button Content="📤 Списать"
                                                     Style="{StaticResource DangerButton}"
                                                     Padding="6,2"
+                                                                                                        Margin="0"
+
                                                     Click="WriteOff_Click"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
@@ -84,13 +88,14 @@
                                 <DataGridTextColumn Header="Наименование" Binding="{Binding Name}" Width="*"/>
                                 <DataGridTextColumn Header="Производитель" Binding="{Binding Manufacturer}" Width="150"/>
                                 <DataGridTextColumn Header="Ближайшая дата истечения"
-                                                    Binding="{Binding NearestExpirationDate, StringFormat='dd.MM.yyyy'}" Width="160"/>
-                                <DataGridTemplateColumn Header="Действие" Width="130">
+                                                    Binding="{Binding NearestExpirationDate, StringFormat='dd.MM.yyyy'}" Width="180"/>
+                                <DataGridTemplateColumn Header="Действие" Width="150">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <Button Content="📤 Списать"
                                                     Style="{StaticResource DangerButton}"
                                                     Padding="6,2"
+                                                    Margin="0"
                                                     Click="WriteOff_Click"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>

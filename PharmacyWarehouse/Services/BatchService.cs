@@ -7,7 +7,6 @@ namespace PharmacyWarehouse.Services
 {
     public class BatchService
     {
-        private readonly PharmacyWarehouseContext _db = BaseDbService.Instance.Context;
         public ObservableCollection<Batch> Batches { get; set; } = new();
 
         public BatchService()
@@ -15,12 +14,10 @@ namespace PharmacyWarehouse.Services
             GetAll();
         }
 
-        public int Commit() => _db.SaveChanges();
-
-
         public void GetAll()
         {
-            var batches = _db.Batches
+            using var db = new PharmacyWarehouseContext();
+            var batches = db.Batches
                 .Include(b => b.Product)
                 .Include(b => b.Supplier)
                 .Include(b => b.IncomingDocument)
@@ -36,7 +33,8 @@ namespace PharmacyWarehouse.Services
 
         public Batch? GetById(int id)
         {
-            return _db.Batches
+            using var db = new PharmacyWarehouseContext();
+            return db.Batches
                 .Include(b => b.Product)
                 .Include(b => b.Supplier)
                 .Include(b => b.IncomingDocument)
@@ -47,7 +45,8 @@ namespace PharmacyWarehouse.Services
 
         public List<Batch> GetByProduct(int productId)
         {
-            return _db.Batches
+            using var db = new PharmacyWarehouseContext();
+            return db.Batches
                 .Where(b => b.ProductId == productId)
                 .Include(b => b.Supplier)
                 .Include(b => b.IncomingDocument)
@@ -58,8 +57,9 @@ namespace PharmacyWarehouse.Services
 
         public ObservableCollection<Batch> GetExpiredBatches()
         {
+            using var db = new PharmacyWarehouseContext();
             var today = DateOnly.FromDateTime(DateTime.Today);
-            var batches = _db.Batches
+            var batches = db.Batches
                 .Where(b => b.ExpirationDate <= today && b.Quantity > 0 && b.IsActive)
                 .Include(b => b.Product)
                 .Include(b => b.Supplier)
@@ -76,10 +76,11 @@ namespace PharmacyWarehouse.Services
 
         public ObservableCollection<Batch> GetExpiringBatches(int days = 30)
         {
+            using var db = new PharmacyWarehouseContext();
             var today = DateOnly.FromDateTime(DateTime.Today);
             var warningDate = today.AddDays(days);
 
-            var batches = _db.Batches
+            var batches = db.Batches
                 .Where(b => b.ExpirationDate > today &&
                            b.ExpirationDate <= warningDate &&
                            b.Quantity > 0 &&
@@ -99,7 +100,8 @@ namespace PharmacyWarehouse.Services
 
         public ObservableCollection<Batch> GetActiveBatches()
         {
-            var batches = _db.Batches
+            using var db = new PharmacyWarehouseContext();
+            var batches = db.Batches
                 .Where(b => b.Quantity > 0 && b.IsActive)
                 .Include(b => b.Product)
                 .Include(b => b.Supplier)
@@ -118,12 +120,13 @@ namespace PharmacyWarehouse.Services
 
         public int GetBatchRemainingQuantity(int batchId)
         {
-            var batch = _db.Batches
+            using var db = new PharmacyWarehouseContext();
+            var batch = db.Batches
                 .AsNoTracking()
                 .FirstOrDefault(b => b.Id == batchId);
             if (batch == null) return 0;
 
-            var totalWriteOff = _db.DocumentLines
+            var totalWriteOff = db.DocumentLines
                 .Where(line => line.SourceBatchId == batchId)
                 .Sum(line => (int?)line.Quantity) ?? 0; 
 

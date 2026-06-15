@@ -18,19 +18,22 @@
                                 Margin="8,0,0,0" Click="OpenInventory_Click"/>
                         <Button Content="Экспорт в Excel" Style="{StaticResource SuccessButton}"
                                 Margin="8,0,0,0" Click="ExportInventory_Click"/>
+                        <Button Content="Удалить" Style="{StaticResource DangerButton}"
+                                Margin="8,0,0,0" Click="DeleteInventory_Click"/>
                     </StackPanel>
                 </StackPanel>
             </Border>
 
             <Border Style="{StaticResource Card}" Margin="0,16,0,0">
                 <DataGrid x:Name="dgInventories" AutoGenerateColumns="False" IsReadOnly="True"
-                          CanUserAddRows="False" SelectionMode="Single">
+                          CanUserAddRows="False" SelectionMode="Single"
+                          MouseDoubleClick="DgInventories_MouseDoubleClick">
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="Номер" Binding="{Binding Number}" Width="120"/>
                         <DataGridTextColumn Header="Дата" Binding="{Binding InventoryDate, StringFormat='dd.MM.yyyy'}" Width="100"/>
-                        <DataGridTextColumn Header="Статус" Binding="{Binding Status}" Width="100"/>
+                        <DataGridTextColumn Header="Статус" Binding="{Binding DisplayStatus}" Width="100"/>
                         <DataGridTextColumn Header="Кем создан" Binding="{Binding CreatedBy}" Width="*"/>
-                        <DataGridTextColumn Header="Завершён" Binding="{Binding CompletedAt, StringFormat='dd.MM.yyyy HH:mm'}" Width="140"/>
+                        <DataGridTextColumn Header="Завершен" Binding="{Binding CompletedAt, StringFormat='dd.MM.yyyy HH:mm'}" Width="140"/>
                     </DataGrid.Columns>
                 </DataGrid>
             </Border>

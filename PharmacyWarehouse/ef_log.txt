@@ -1,5 +1,13 @@
-fail: 05.06.2026 15:17:30.786 RelationalEventId.CommandError[20102] (Microsoft.EntityFrameworkCore.Database.Command) 
-      Failed executing DbCommand (97ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+fail: 08.06.2026 15:23:06.177 RelationalEventId.CommandError[20102] (Microsoft.EntityFrameworkCore.Database.Command) 
+      Failed executing DbCommand (422ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      CREATE TABLE [Categories] (
+          [ID] int NOT NULL IDENTITY,
+          [Name] nvarchar(100) NOT NULL,
+          [Description] nvarchar(500) NULL,
+          CONSTRAINT [PK__Категории__3214EC278AD91EA3] PRIMARY KEY ([ID])
+      );
+fail: 08.06.2026 15:26:41.870 RelationalEventId.CommandError[20102] (Microsoft.EntityFrameworkCore.Database.Command) 
+      Failed executing DbCommand (16ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
       CREATE TABLE [Categories] (
           [ID] int NOT NULL IDENTITY,
           [Name] nvarchar(100) NOT NULL,

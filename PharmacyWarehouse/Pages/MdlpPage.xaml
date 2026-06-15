@@ -67,7 +67,7 @@
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <Button Content="🔄 Повторить"
-                                                Visibility="{Binding IsError, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                Visibility="{Binding CanRetry, Converter={StaticResource BoolToVisibilityConverter}}"
                                                 Click="RowRetry_Click"
                                                 Padding="8,4"/>
                                     </DataTemplate>

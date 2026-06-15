@@ -153,7 +153,7 @@
                                              MaxLength="24" 
                                              ToolTip="Введите 20-значный номер банковского счета"/>
 
-                                        <!-- Примечание -->
+                                    <!-- Примечание -->
                                     <TextBlock Text="Примечание:" 
                                               Grid.Row="2" Grid.Column="0"
                                               Style="{StaticResource BodyText}" 
@@ -202,204 +202,192 @@
                 </StackPanel>
             </Border>
 
-            <!-- Сканирование DataMatrix -->
-            <GroupBox Header="Сканирование DataMatrix" Style="{StaticResource CardGroupBox}" Margin="0,0,0,16">
-                <StackPanel Margin="8">
-                    <TextBox x:Name="txtDataMatrix"
-                             Height="36"
-                             KeyDown="txtDataMatrix_KeyDown"/>
-                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                        <Button x:Name="btnParseDataMatrix" Content="Разобрать"
-                                Style="{StaticResource PrimaryButton}" Click="btnParseDataMatrix_Click"/>
-                        <TextBlock x:Name="txtParseResult" Style="{StaticResource BodyText}"
-                                   Margin="12,0,0,0" VerticalAlignment="Center"/>
-                    </StackPanel>
-                </StackPanel>
-            </GroupBox>
-
-            <!-- ДОБАВЛЕНИЕ ТОВАРА -->
+            <!-- ДОБАВЛЕНИЕ ТОВАРА: ДВА БЛОКА -->
             <Border Style="{StaticResource Card}" Padding="0">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
-                    <!-- Заголовок таблицы -->
+                    <!-- Заголовок -->
                     <Border Grid.Row="0" Style="{StaticResource CardHeader}">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" 
-                                       Text="📦 Позиции прихода" 
-                                       Style="{StaticResource H3}" 
-                                       Foreground="{StaticResource TextWhiteBrush}"/>
-                            <TextBlock Grid.Column="1" 
-                                       x:Name="txtSelectedItemsInfo"
-                                       Text="Выбрано: 0" 
-                                       Style="{StaticResource BodyText}" 
-                                       Foreground="{StaticResource TextWhiteBrush}"
-                                       VerticalAlignment="Center"/>
-                        </Grid>
+                        <TextBlock Text="📦 Позиции прихода" 
+                                   Style="{StaticResource H3}" 
+                                   Foreground="{StaticResource TextWhiteBrush}"/>
                     </Border>
 
-                    <!-- Панель добавления товара -->
+                    <!-- Один блок добавления с единым полем сканирования -->
                     <Border Grid.Row="1" 
                            Background="{StaticResource BackgroundLightBrush}"
                            Padding="16"
                            BorderBrush="{StaticResource BorderLightBrush}"
                            BorderThickness="0,0,0,1">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="2*"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
+                        <StackPanel>
+                            <!-- Поле сканирования -->
+                            <TextBlock Text="📡 Сканируйте или введите код" 
+                                       Style="{StaticResource BodyText}" 
+                                       FontWeight="SemiBold"
+                                       Margin="0,0,0,4"/>
+                            <TextBox x:Name="txtScanCode"
+                     Height="36"
+                     Margin="0,0,0,8"
+                     KeyDown="TxtScanCode_KeyDown" TextChanged="txtScanCode_TextChanged"/>
+                            <TextBlock x:Name="txtScanError" 
+                                       Style="{StaticResource BodyText}"
+                                       Foreground="Red"
+                                       Height="20"
+                                       Margin="0,0,0,12"/>
 
-                            <!-- Заголовки -->
-                            <TextBlock Text="Товар *" 
-                                      Grid.Column="0" Grid.Row="0"
-                                      Style="{StaticResource BodyText}" 
-                                      FontWeight="SemiBold"
-                                      Margin="0,0,0,8"/>
-                            <TextBlock x:Name="lblQuantity" Text="Количество *" 
-                                      Grid.Column="1" Grid.Row="0"
-                                      Style="{StaticResource BodyText}" 
-                                      FontWeight="SemiBold"
-                                      Margin="0,0,0,8"/>
-                            <TextBlock Text="Цена закупки *" 
-                                      Grid.Column="2" Grid.Row="0"
-                                      Style="{StaticResource BodyText}" 
-                                      FontWeight="SemiBold"
-                                      Margin="0,0,0,8"/>
-                            <TextBlock Text="Сумма" 
-                                      Grid.Column="3" Grid.Row="0"
-                                      Style="{StaticResource BodyText}" 
-                                      FontWeight="SemiBold"
-                                      Margin="0,0,0,8"/>
-                            <TextBlock Text="Серия товара*" 
-                                      Grid.Column="4" Grid.Row="0"
-                                      Style="{StaticResource BodyText}" 
-                                      FontWeight="SemiBold"
-                                      Margin="0,0,0,8"/>
-                            <TextBlock Text="Срок годности*" 
-                                      Grid.Column="5" Grid.Row="0"
-                                      Style="{StaticResource BodyText}" 
-                                      FontWeight="SemiBold"
-                                      Margin="0,0,0,8"/>
-                            <TextBlock x:Name="lblSgtin" Text="Код маркировки (SGTIN)" 
-                                      Grid.Column="6" Grid.Row="0"
-                                      Style="{StaticResource BodyText}" 
-                                      FontWeight="SemiBold"
-                                      Margin="0,0,0,8"
-                                      Visibility="Collapsed"/>
+                            <!-- Форма для добавления товара -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
 
-                            <!-- Поля ввода -->
-                            <ComboBox x:Name="cmbProduct" 
-                                     Grid.Column="0" Grid.Row="1"
-                                     DisplayMemberPath="Name"
-                                     IsEditable="True"
-                                     IsTextSearchEnabled="True"
-                                     StaysOpenOnEdit="True"
-                                     TextSearch.TextPath="Name"
-                                     ItemsSource="{Binding FilteredProducts}"
-                                     Text="{Binding ProductSearchText, UpdateSourceTrigger=PropertyChanged}"
-                                     SelectionChanged="CmbProduct_SelectionChanged"
-                                     Height="36"
-                                     Margin="0,0,8,0">
-                                <ComboBox.Style>
-                                    <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
-                                        <Setter Property="ItemTemplate">
-                                            <Setter.Value>
-                                                <DataTemplate>
-                                                    <StackPanel>
-                                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
-                                                    </StackPanel>
-                                                </DataTemplate>
-                                            </Setter.Value>
-                                        </Setter>
-                                    </Style>
-                                </ComboBox.Style>
-                            </ComboBox>
+                                <!-- Товар -->
+                                <TextBlock Text="Товар *" 
+                                          Grid.Row="0" Grid.Column="0"
+                                          Style="{StaticResource BodyText}" 
+                                          FontWeight="SemiBold"
+                                          Margin="0,0,0,4"/>
+                                <ComboBox x:Name="cmbProduct" 
+                                         Grid.Row="1" Grid.Column="0"
+                                         DisplayMemberPath="Name"
+                                         IsEditable="True"
+                                         IsTextSearchEnabled="True"
+                                         StaysOpenOnEdit="True"
+                                         TextSearch.TextPath="Name"
+                                         ItemsSource="{Binding FilteredProducts}"
+                                         Text="{Binding ProductSearchText, UpdateSourceTrigger=PropertyChanged}"
+                                         SelectionChanged="CmbProduct_SelectionChanged"
+                                         Height="36"
+                                         Margin="0,0,0,8">
+                                    <ComboBox.Style>
+                                        <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
+                                            <Setter Property="ItemTemplate">
+                                                <Setter.Value>
+                                                    <DataTemplate>
+                                                        <StackPanel>
+                                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </ComboBox.Style>
+                                </ComboBox>
 
-                            <TextBox x:Name="txtQuantity" 
-                                    Grid.Column="1" Grid.Row="1"
-                                    TextAlignment="Right"
-                                    Margin="0,0,8,0"
-                                    Height="36"
-                                    PreviewTextInput="NumberValidationTextBox"/>
+                                <!-- Количество + Цена -->
+                                <TextBlock Text="Количество *" 
+                                          Grid.Row="0" Grid.Column="1"
+                                          Style="{StaticResource BodyText}" 
+                                          FontWeight="SemiBold"
+                                          Margin="8,0,0,4"/>
+                                <TextBox x:Name="txtQuantity" 
+                                         Grid.Row="1" Grid.Column="1"
+                                         Text="1"
+                                         TextAlignment="Right"
+                                         Margin="8,0,0,8"
+                                         Height="36"
+                                         IsEnabled="True"
+                                         PreviewTextInput="NumberValidationTextBox"/>
+                                
+                                <!-- Серия + Срок -->
+                                <TextBlock Text="Серия *" 
+                                          Grid.Row="2" Grid.Column="0"
+                                          Style="{StaticResource BodyText}" 
+                                          FontWeight="SemiBold"
+                                          Margin="0,0,0,4"/>
+                                <TextBox x:Name="txtSeries"
+                                         Grid.Row="3" Grid.Column="0"
+                                         Height="36"
+                                         Margin="0,0,0,0" TextChanged="txtSeries_TextChanged"/>
+                                
+                                <TextBlock Text="Срок *" 
+                                          Grid.Row="2" Grid.Column="1"
+                                          Style="{StaticResource BodyText}" 
+                                          FontWeight="SemiBold"
+                                          Margin="8,0,0,4"/>
+                                <DatePicker x:Name="dpExpirationDate" 
+                                           Grid.Row="3" Grid.Column="1"
+                                           SelectedDateFormat="Short"
+                                           Height="30"
+                                           Margin="8,0,0,0"/>
+                            </Grid>
 
-                            <TextBox x:Name="txtPurchasePrice" 
-                                    Grid.Column="2" Grid.Row="1"
-                                    TextAlignment="Right"
-                                    Margin="0,0,8,0"
-                                    Height="36"
-                                    PreviewTextInput="DecimalValidationTextBox"/>
+                            <Grid Margin="0,8,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition/>
+                                    <RowDefinition/>
+                                </Grid.RowDefinitions>
+                                
+                                
+                                <TextBlock Text="Цена закупки *" 
+                                          Grid.Row="0" Grid.Column="0"
+                                          Style="{StaticResource BodyText}" 
+                                          FontWeight="SemiBold"
+                                          Margin="0,0,0,4"/>
+                                <TextBox x:Name="txtPurchasePrice" 
+                                         Grid.Row="1" Grid.Column="0"
+                                         TextAlignment="Right"
+                                         Height="36"
+                                         PreviewTextInput="DecimalValidationTextBox"
+                                         TextChanged="TxtPurchasePrice_TextChanged"
+                                         Margin="0,0,4,0"/>
 
-                            <TextBlock x:Name="txtLineTotal" 
-                                      Grid.Column="3" Grid.Row="1"
-                                      Text="0.00"
-                                      Style="{StaticResource BodyText}"
-                                      VerticalAlignment="Center"
-                                      FontWeight="SemiBold"
-                                      Foreground="{StaticResource AccentGreenBrush}"
-                                      Margin="0,0,8,0"/>
-
-                            <TextBox x:Name="txtSeries"
-                                      Grid.Column="4" Grid.Row="1"
-                                      TextAlignment="Right"
-                                      Margin="0,0,8,0"
-                                      Height="36"
-                                      PreviewTextInput="NumberValidationTextBox"/>
-                            <DatePicker x:Name="dpExpirationDate" 
-                                      Grid.Column="5" Grid.Row="1"
-                                      SelectedDateFormat="Short"
-                                      Height="30"/>
-                            <TextBox x:Name="txtSgtin"
-                                      Grid.Column="6" Grid.Row="1"
-                                      Margin="0,0,8,0"
-                                      Height="36"
-                                      MaxLength="27"
-                                      Visibility="Collapsed"
-                                      TextChanged="TxtSgtin_TextChanged"/>
-                            <Button Content="➕ Добавить" 
-                                   Grid.Column="6" Grid.Row="2"
-                                   Style="{StaticResource PrimaryButton}"
-                                   Width="120"
-                                   Height="36"
-                                   Click="AddItem_Click"
-                                   HorizontalAlignment="Right" />
-                        </Grid>
+                                <TextBlock Text="Цена продажи" 
+                                          Grid.Row="0" Grid.Column="1"
+                                          Style="{StaticResource BodyText}" 
+                                          FontWeight="SemiBold"
+                                          Margin="4,0,0,4"/>
+                                <TextBox x:Name="txtSellingPrice" 
+                                         Grid.Row="1" Grid.Column="1"
+                                         TextAlignment="Right"
+                                         Height="36"
+                                         PreviewTextInput="DecimalValidationTextBox"
+                                         Margin="4,0,0,0"/>
+                                
+                                <Button Content="➕ Добавить" 
+                                       Grid.Row="1" Grid.Column="2"
+                                       Style="{StaticResource PrimaryButton}"
+                                       Width="120"
+                                       Height="36"
+                                       Margin="8,0,0,0"
+                                       Click="AddItem_Click"
+                                       HorizontalAlignment="Right"/>
+                            </Grid>
+                        </StackPanel>
                     </Border>
                 </Grid>
             </Border>
 
-            <Grid>
+            <Grid Margin="0,16,0,0">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="2*"/>
+                    <ColumnDefinition Width="3*"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
                 <!-- Таблица позиций -->
                 <DataGrid x:Name="dgItems" 
-       Grid.Row="2"
-       AutoGenerateColumns="False"
-       CanUserAddRows="False"
-       IsReadOnly="True"
-       SelectionMode="Single"
-       SelectionChanged="DgItems_SelectionChanged"
-       Margin="0 0 15 0 ">
+               AutoGenerateColumns="False"
+               CanUserAddRows="False"
+               IsReadOnly="True"
+               SelectionMode="Single"
+               SelectionChanged="DgItems_SelectionChanged"
+               Margin="0 0 15 0 ">
 
                     <DataGrid.Columns>
                         <!-- № -->
@@ -435,6 +423,19 @@
                                     <Setter Property="VerticalAlignment" Value="Center"/>
                                     <Setter Property="TextAlignment" Value="Center"/>
                                     <Setter Property="FontWeight" Value="SemiBold"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <!-- SGTIN -->
+                        <DataGridTextColumn Header="SGTIN" 
+                      Width="150"
+                      Binding="{Binding Sgtin}">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                    <Setter Property="TextAlignment" Value="Left"/>
+                                    <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
                                 </Style>
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
@@ -530,7 +531,6 @@ Click="ShowDeliveryHistory_Click"/>
                 <Border Style="{StaticResource Card}" Padding="12" Grid.Column="1">
                     <Grid>
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
 

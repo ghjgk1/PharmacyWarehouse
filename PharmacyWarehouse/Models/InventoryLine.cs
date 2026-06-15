@@ -13,6 +13,7 @@ public partial class InventoryLine : ObservableObject
     private string? _notes;
     private ObservableCollection<string> _scannedCodes = new();
     private string? _lastScannedCode;
+    private Batch _batch = null!;
 
     public int Id
     {
@@ -90,6 +91,21 @@ public partial class InventoryLine : ObservableObject
     [NotMapped]
     public bool IsVerified => ActualQuantity.HasValue;
 
+    [NotMapped]
+    public bool IsTracked => Batch?.Product?.IsTracked ?? false;
+
     public virtual Inventory Inventory { get; set; } = null!;
-    public virtual Batch Batch { get; set; } = null!;
+    public virtual Batch Batch
+    {
+        get => _batch;
+        set
+        {
+            if (SetProperty(ref _batch, value))
+            {
+                OnPropertyChanged(nameof(IsTracked));
+            }
+        }
+    }
+
+    public virtual ICollection<InventoryScannedCode> InventoryScannedCodes { get; set; } = new List<InventoryScannedCode>();
 }

@@ -47,6 +47,7 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
     private string _currentUser = String.Empty;
 
     public int? PreselectedProductId { get; set; }
+    public string? RestrictedGtin { get; set; }
 
     public ReceiptPage(int? documentId = null)
     {
@@ -105,18 +106,14 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
     {
         if (!PreselectedProductId.HasValue) return;
 
-        // Ждем загрузки данных
         await Task.Delay(100);
         
-        // Попробуем найти товар в _allProducts, а если нет - загрузим из БД
         var product = _allProducts.FirstOrDefault(p => p.Id == PreselectedProductId.Value);
         if (product == null)
         {
-            // Если не найдено, попробуем загрузить из контекста
             product = await _context.Products.FirstOrDefaultAsync(p => p.Id == PreselectedProductId.Value);
             if (product != null)
             {
-                // Добавим в _allProducts, чтобы он был доступен в ComboBox
                 _allProducts.Add(product);
                 _allProductsObservable.Add(product);
                 _filteredProductsView?.Refresh();
@@ -125,10 +122,36 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
         
         if (product != null)
         {
-            // Используем Dispatcher, чтобы выполнить в UI потоке
+            RestrictedGtin = product.Gtin;
+            
             Dispatcher.Invoke(() =>
             {
-                cmbProduct.SelectedItem = product;
+                if (product.IsTracked)
+                {
+                    // Для маркированных товаров: фокус на сканер, блокируем ComboBox
+                    cmbProduct.IsEnabled = false;
+                    txtScanCode.Focus();
+                    txtScanError.Text = $"✅ Товар выбран. Пожалуйста, сканируйте DataMatrix.";
+                    txtScanError.Foreground = System.Windows.Media.Brushes.Green;
+                }
+                else
+                {
+                    // Для немаркированных: выбираем товар
+                    cmbProduct.SelectedItem = product;
+                    
+                    // Заполняем цену последней закупки
+                    var lastPurchasePrice = product.Batches
+                        .Where(b => b.IsActive)
+                        .OrderByDescending(b => b.ArrivalDate)
+                        .Select(b => b.PurchasePrice)
+                        .FirstOrDefault();
+
+                    if (lastPurchasePrice > 0)
+                    {
+                        txtPurchasePrice.Text = lastPurchasePrice.ToString("N2");
+                        txtSellingPrice.Text = (lastPurchasePrice * 1.3m).ToString("N2");
+                    }
+                }
             });
         }
         else
@@ -148,10 +171,10 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
             Status = DocumentStatus.Draft,
             CreatedBy = _currentUser,
             CreatedAt = DateTime.Now,
-            Number = GenerateDocumentNumber()
+            Number = string.Empty // Let CreateIncomingDocument generate it inside the transaction
         };
 
-        txtDocNumber.Text = _currentDocument.Number;
+        txtDocNumber.Text = "(будет сгенерирован при сохранении)";
         dpDocDate.SelectedDate = _currentDocument.Date;
         dpInvoiceDate.SelectedDate = DateTime.Now;
 
@@ -161,6 +184,11 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
         _documentItems.Clear();
         UpdateDocumentTotals();
         UpdateSelectedItemInfo();
+
+        ResetItemForm();
+        
+        // Устанавливаем фокус на поле сканирования
+        Dispatcher.BeginInvoke(() => txtScanCode.Focus());
     }
 
     private async void LoadDraft(int documentId)
@@ -173,8 +201,8 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
 
             _currentDocument = draft;
 
-            // Проверяем, был ли документ уже отправлен в МДЛП
-            var existingMdlpDoc = await _context.MdlpDocuments
+            using var db = new PharmacyWarehouseContext();
+            var existingMdlpDoc = await db.MdlpDocuments
                 .FirstOrDefaultAsync(d => d.DocumentId == _currentDocument.Id);
 
             if (existingMdlpDoc != null)
@@ -189,7 +217,6 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
                 txtAlreadySentHint.Visibility = Visibility.Collapsed;
             }
 
-            // Заполняем поля формы
             txtDocNumber.Text = draft.Number;
             dpDocDate.SelectedDate = draft.Date;
             cmbSupplier.SelectedValue = draft.SupplierId;
@@ -197,10 +224,12 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
             dpInvoiceDate.SelectedDate = draft.SupplierInvoiceDate;
             txtNotes.Text = draft.Notes;
 
-            // Загружаем позиции
             _documentItems.Clear();
             foreach (var line in draft.DocumentLines)
             {
+                // Find the product for this line
+                var product = _allProducts.FirstOrDefault(p => p.Id == line.ProductId);
+                line.Product = product;
                 _documentItems.Add(line);
             }
 
@@ -218,7 +247,6 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
     {
         try
         {
-            // Загружаем поставщиков
             _allSuppliers.Clear();
             var suppliers = _supplierService.Suppliers
                 .Where(s => s.IsActive)
@@ -232,7 +260,6 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
 
             cmbSupplier.ItemsSource = _allSuppliers;
 
-            // Загружаем товары
             _allProducts.Clear();
             _allProductsObservable.Clear();
 
@@ -247,11 +274,9 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
                 _allProductsObservable.Add(product);
             }
 
-            // Настраиваем фильтрацию товаров
             _filteredProductsView = CollectionViewSource.GetDefaultView(_allProductsObservable);
             _filteredProductsView.Filter = FilterProduct;
 
-            // Привязываем к ComboBox
             cmbProduct.SetBinding(ComboBox.ItemsSourceProperty,
                 new Binding("FilteredProducts") { Source = this });
         }
@@ -263,7 +288,14 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
 
     private bool FilterProduct(object obj)
     {
-        if (obj is not Product product || string.IsNullOrWhiteSpace(ProductSearchText))
+        if (obj is not Product product)
+            return false;
+            
+        // Показываем только немаркированные товары в ComboBox
+        if (product.IsTracked)
+            return false;
+
+        if (string.IsNullOrWhiteSpace(ProductSearchText))
             return true;
 
         var searchText = ProductSearchText.ToLower();
@@ -275,8 +307,271 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
     private string GenerateDocumentNumber()
     {
         var date = DateTime.Now;
-        var count = _documentService.GetDocumentsCount(date.Month, date.Year);
+        var count = _documentService.GetDocumentsCount(date.Month, date.Year, PharmacyWarehouse.Models.DocumentType.Incoming);
         return $"ПР-{date:MMyy}-{count + 1:D4}";
+    }
+
+    #endregion
+
+    #region DataMatrix and GTIN Handling
+
+    private void TxtScanCode_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter)
+            return;
+
+        e.Handled = true;
+        ProcessScanCode(txtScanCode.Text.Trim());
+    }
+
+    private void ProcessScanCode(string code)
+    {
+        // Скрываем предыдущую ошибку
+        txtScanError.Text = "";
+
+        // Проверка: это только цифры и длина 13?
+        if (code.All(char.IsDigit) && code.Length == 13)
+        {
+            // EAN-13: добавляем ведущий ноль до 14 символов
+            string gtin = "0" + code;
+            ProcessGtin(gtin);
+            return;
+        }
+
+        // Иначе - DataMatrix
+        ProcessDataMatrix(code);
+    }
+
+    private void ProcessDataMatrix(string code)
+    {
+        var result = DataMatrixParser.Parse(code);
+        if (!result.IsValid)
+        {
+            ShowScanError(result.ErrorMessage ?? "Некорректный DataMatrix код");
+            return;
+        }
+
+        if (!string.IsNullOrEmpty(result.Sgtin))
+        {
+            ProcessSgtin(result.Sgtin, result);
+        }
+        else if (!string.IsNullOrEmpty(result.Gtin))
+        {
+            ProcessGtin(result.Gtin, result);
+        }
+        else
+        {
+            ShowScanError("Код не содержит GTIN или SGTIN");
+        }
+    }
+
+    private void ProcessSgtin(string sgtin, DataMatrixResult dataMatrixResult)
+    {
+        string gtinFromSgtin = sgtin.Substring(0, 14);
+        
+        // Проверка на ограничение по GTIN
+        if (!string.IsNullOrEmpty(RestrictedGtin) && gtinFromSgtin != RestrictedGtin)
+        {
+            ShowScanError($"Пожалуйста, сканируйте только выбранный товар (GTIN: {RestrictedGtin})");
+            return;
+        }
+        
+        var product = _allProducts.FirstOrDefault(p => p.Gtin == gtinFromSgtin);
+        
+        if (product == null)
+        {
+            ShowScanError($"Товар с GTIN {gtinFromSgtin} не найден");
+            return;
+        }
+
+        if (!product.IsTracked)
+        {
+            ShowScanError("Товар не маркированный, используйте GTIN");
+            return;
+        }
+
+        using var db = new PharmacyWarehouseContext();
+        var existingSgtin = db.MdlpSgtins.FirstOrDefault(s => s.Sgtin == sgtin);
+        if (existingSgtin != null && existingSgtin.Status != "Withdrawn" && existingSgtin.Status != "WrittenOff")
+        {
+            ShowScanError("Этот SGTIN уже в обращении");
+            return;
+        }
+
+        var inCurrentDoc = _documentItems.Any(item => item.Sgtin == sgtin);
+        if (inCurrentDoc)
+        {
+            ShowScanError("Этот SGTIN уже в документе");
+            return;
+        }
+
+        // Проверка цены закупки - обязательна
+        if (!decimal.TryParse(txtPurchasePrice.Text, out decimal purchasePrice) || purchasePrice <= 0)
+        {
+            ShowScanError("Введите цену закупки перед сканированием");
+            return;
+        }
+
+        // Получаем цену продажи из поля
+        decimal sellingPrice;
+        if (!decimal.TryParse(txtSellingPrice.Text, out sellingPrice) || sellingPrice <= 0)
+        {
+            sellingPrice = purchasePrice * 1.3m;
+        }
+
+        try
+        {
+            var documentLine = new DocumentLine
+            {
+                ProductId = product.Id,
+                Product = product, 
+                Quantity = 1,
+                UnitPrice = purchasePrice,
+                SellingPrice = sellingPrice,
+                Notes = $"Поступление от поставщика",
+                Sgtin = sgtin,
+                Series = dataMatrixResult.Series ?? GenerateRandomSeries(),
+                ExpirationDate = dataMatrixResult.ExpirationDate
+            };
+
+            _documentItems.Add(documentLine);
+            UpdateDocumentTotals();
+
+            ResetScanField();
+            txtScanError.Text = $"✅ Товар добавлен: {product.Name}";
+            txtScanError.Foreground = System.Windows.Media.Brushes.Green;
+        }
+        catch (Exception ex)
+        {
+            ShowScanError($"Ошибка: {ex.Message}");
+        }
+    }
+
+    private void ProcessGtin(string gtin, DataMatrixResult? dataMatrixResult = null)
+    {
+        // Проверка на ограничение по GTIN
+        if (!string.IsNullOrEmpty(RestrictedGtin) && gtin != RestrictedGtin)
+        {
+            ShowScanError($"Пожалуйста, сканируйте только выбранный товар (GTIN: {RestrictedGtin})");
+            return;
+        }
+        
+        var product = _allProducts.FirstOrDefault(p => p.Gtin == gtin);
+        if (product == null)
+        {
+            ShowScanError($"Товар с GTIN {gtin} не найден");
+            return;
+        }
+
+        if (product.IsTracked)
+        {
+            ShowScanError("Товар маркированный, нужен полный DataMatrix");
+            return;
+        }
+
+        // Проверка цены закупки - обязательна
+        if (!decimal.TryParse(txtPurchasePrice.Text, out decimal purchasePrice) || purchasePrice <= 0)
+        {
+            ShowScanError("Введите цену закупки перед сканированием");
+            return;
+        }
+
+        // Получаем цену продажи из поля
+        decimal sellingPrice;
+        if (!decimal.TryParse(txtSellingPrice.Text, out sellingPrice) || sellingPrice <= 0)
+        {
+            var lastPurchasePrice = product.Batches
+                .Where(b => b.IsActive)
+                .OrderByDescending(b => b.ArrivalDate)
+                .Select(b => b.PurchasePrice)
+                .FirstOrDefault();
+            
+            if (lastPurchasePrice > 0)
+            {
+                sellingPrice = lastPurchasePrice * 1.3m;
+            }
+            else
+            {
+                sellingPrice = purchasePrice * 1.3m;
+            }
+        }
+        
+        // Получаем количество из поля
+        if (!int.TryParse(txtQuantity.Text, out int quantity) || quantity <= 0)
+        {
+            quantity = 1;
+        }
+
+        // Генерируем серию и получаем срок годности
+        string series = GenerateRandomSeries();
+        DateOnly? expirationDate = null;
+        
+        if (dataMatrixResult != null)
+        {
+            if (!string.IsNullOrEmpty(dataMatrixResult.Series))
+            {
+                series = dataMatrixResult.Series;
+            }
+
+            if (dataMatrixResult.ExpirationDate.HasValue)
+            {
+                expirationDate = dataMatrixResult.ExpirationDate;
+            }
+        }
+
+        try
+        {
+            var documentLine = new DocumentLine
+            {
+                ProductId = product.Id,
+                Product = product, 
+                Quantity = quantity,
+                UnitPrice = purchasePrice,
+                SellingPrice = sellingPrice,
+                Notes = $"Поступление от поставщика",
+                Series = series,
+                ExpirationDate = expirationDate
+            };
+
+            _documentItems.Add(documentLine);
+            UpdateDocumentTotals();
+
+            ResetScanField();
+            txtScanError.Text = $"✅ Товар добавлен: {product.Name}";
+            txtScanError.Foreground = System.Windows.Media.Brushes.Green;
+        }
+        catch (Exception ex)
+        {
+            ShowScanError($"Ошибка: {ex.Message}");
+        }
+    }
+
+    private void ShowScanError(string message)
+    {
+        txtScanError.Text = $"❌ {message}";
+        txtScanError.Foreground = System.Windows.Media.Brushes.Red;
+    }
+
+    private string GenerateRandomSeries()
+    {
+        var random = new Random();
+        // Cyrillic letters commonly used in series: С, Т (and maybe others? Let's use С and Т as per examples)
+        char[] prefixes = new char[] { 'С', 'Т' };
+        char prefix = prefixes[random.Next(prefixes.Length)];
+        
+        // Get current date in format YYMMDD
+        var today = DateTime.Now;
+        string datePart = today.ToString("yyMMdd");
+        
+        return $"{prefix}{datePart}";
+    }
+
+    private void ResetScanField()
+    {
+        txtScanCode.Text = "";
+        txtPurchasePrice.Text = "";
+        txtSellingPrice.Text = "";
+        Dispatcher.BeginInvoke(() => txtScanCode.Focus());
     }
 
     #endregion
@@ -285,7 +580,6 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
 
     private void AddItem_Click(object sender, RoutedEventArgs e)
     {
-        // Валидация
         if (cmbProduct.SelectedItem == null)
         {
             ShowError("Ошибка", "Выберите товар");
@@ -297,61 +591,26 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
 
         if (selectedProduct.IsTracked)
         {
-            // Валидация SGTIN для маркированных товаров
-            var sgtin = txtSgtin.Text.Trim();
-            if (string.IsNullOrWhiteSpace(sgtin))
-            {
-                ShowError("Ошибка", "Введите код маркировки (SGTIN)");
-                return;
-            }
-
-            if (sgtin.Length != 27)
-            {
-                ShowError("Ошибка", "Длина SGTIN должна быть 27 символов");
-                return;
-            }
-
-            if (selectedProduct.Gtin != null && sgtin.Substring(0, 14) != selectedProduct.Gtin)
-            {
-                ShowError("Ошибка", $"Первые 14 символов должны совпадать с GTIN товара ({selectedProduct.Gtin})");
-                return;
-            }
-
-            // Проверка дубликата
-            var existingSgtin = _context.MdlpSgtins.FirstOrDefault(s => s.Sgtin == sgtin);
-            if (existingSgtin != null)
-            {
-                ShowError("Ошибка", "Такой код маркировки уже существует");
-                return;
-            }
-
-            // Проверка дубликата в текущем документе
-            var inCurrentDoc = _documentItems.Any(item => item.Sgtin == sgtin);
-            if (inCurrentDoc)
-            {
-                ShowError("Ошибка", "Этот код маркировки уже добавлен в документ");
-                return;
-            }
+            ShowError("Ошибка", "Для маркированных используйте блок слева");
+            return;
         }
-        else
+
+        if (!int.TryParse(txtQuantity.Text, out int quantity) || quantity <= 0)
         {
-            if (!int.TryParse(txtQuantity.Text, out int quantity) || quantity <= 0)
-            {
-                ShowError("Ошибка", "Введите корректное количество");
-                return;
-            }
+            ShowError("Ошибка", "Введите корректное количество");
+            return;
+        }
 
-            if (string.IsNullOrWhiteSpace(txtSeries.Text))
-            {
-                ShowError("Ошибка", "Введите серию товара");
-                return;
-            }
+        if (string.IsNullOrWhiteSpace(txtSeries.Text))
+        {
+            ShowError("Ошибка", "Введите серию товара");
+            return;
+        }
 
-            if (!dpExpirationDate.SelectedDate.HasValue)
-            {
-                ShowError("Ошибка", "Выберите срок годности");
-                return;
-            }
+        if (!dpExpirationDate.SelectedDate.HasValue)
+        {
+            ShowError("Ошибка", "Выберите срок годности");
+            return;
         }
 
         if (!decimal.TryParse(txtPurchasePrice.Text, out decimal price) || price <= 0)
@@ -360,32 +619,31 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
             return;
         }
 
+        // Получаем цену продажи
+        decimal sellingPrice;
+        if (!decimal.TryParse(txtSellingPrice.Text, out sellingPrice) || sellingPrice <= 0)
+        {
+            sellingPrice = price * 1.3m;
+        }
+
         try
         {
             var documentLine = new DocumentLine
             {
                 ProductId = selectedProduct.Id,
                 Product = selectedProduct, 
-                Quantity = selectedProduct.IsTracked ? 1 : int.Parse(txtQuantity.Text),
+                Quantity = quantity,
                 UnitPrice = price,
-                SellingPrice = price * 1.3m, 
+                SellingPrice = sellingPrice, 
                 Series = txtSeries.Text.Trim(),
                 ExpirationDate = DateOnly.FromDateTime(dpExpirationDate.SelectedDate.Value),
-                Notes = $"Поступление от поставщика",
-                Sgtin = selectedProduct.IsTracked ? txtSgtin.Text.Trim() : null
+                Notes = $"Поступление от поставщика"
             };
 
             _documentItems.Add(documentLine);
 
-            txtQuantity.Text = "1";
-            txtPurchasePrice.Text = "0.00";
-            txtSeries.Text = "";
-            dpExpirationDate.SelectedDate = null;
-            cmbProduct.SelectedItem = null;
-            txtSgtin.Text = "";
-
+            ResetItemForm();
             UpdateDocumentTotals();
-            UpdateLineTotal();
             ShowInfo($"Товар '{selectedProduct.Name}' добавлен");
         }
         catch (Exception ex)
@@ -410,6 +668,7 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
 
         txtQuantity.Text = selectedDocumentLine.Quantity.ToString();
         txtPurchasePrice.Text = selectedDocumentLine.UnitPrice.ToString("N2");
+        txtSellingPrice.Text = selectedDocumentLine.SellingPrice.Value.ToString("N2");
         txtSeries.Text = selectedDocumentLine.Series ?? "";
 
         if (selectedDocumentLine.ExpirationDate.HasValue)
@@ -459,11 +718,7 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
         if (int.TryParse(txtQuantity.Text, out int quantity) &&
             decimal.TryParse(txtPurchasePrice.Text, out decimal price))
         {
-            txtLineTotal.Text = (quantity * price).ToString("N2");
-        }
-        else
-        {
-            txtLineTotal.Text = "0.00";
+            // txtLineTotal removed in new design
         }
     }
 
@@ -485,9 +740,20 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
             txtCurrentStock.Text = "0";
             txtMinRemainder.Text = "0";
         }
-
-        txtSelectedItemsInfo.Text = $"Выбрано: {dgItems.SelectedItems.Count}";
     }
+
+    private void ResetItemForm()
+    {
+        txtQuantity.Text = "1";
+        txtPurchasePrice.Text = "";
+        txtSellingPrice.Text = "";
+        txtSeries.Text = "";
+        dpExpirationDate.SelectedDate = null;
+        cmbProduct.SelectedItem = null;
+        txtScanCode.Text = "";
+        txtScanError.Text = "";
+    }
+
     #endregion
 
     #region Document Operations
@@ -496,7 +762,6 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
     {
         try
         {
-            // Обновляем данные документа
             _currentDocument.Date = dpDocDate.SelectedDate ?? DateTime.Now;
             _currentDocument.SupplierId = cmbSupplier.SelectedValue as int?;
             _currentDocument.SupplierInvoiceNumber = txtInvoiceNumber.Text;
@@ -505,7 +770,6 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
             _currentDocument.Status = DocumentStatus.Draft;
             _currentDocument.Amount = _documentTotal;
 
-            // Создаем список строк документа
             var documentLines = new List<DocumentLine>();
             foreach (var item in _documentItems)
             {
@@ -514,13 +778,13 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
                     ProductId = item.ProductId,
                     Quantity = item.Quantity,
                     UnitPrice = item.UnitPrice,
-                    SellingPrice = item.SellingPrice * 1.3m,
+                    SellingPrice = item.SellingPrice,
                     Series = item.Series,
                     ExpirationDate = item.ExpirationDate,
-                    Notes = $"Поступление от поставщика"
+                    Notes = $"Поступление от поставщика",
+                    Sgtin = item.Sgtin
                 };
 
-                // Если это редактирование существующей строки, сохраняем ID
                 if (item.Id != 0)
                 {
                     line.Id = item.Id;
@@ -529,10 +793,7 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
                 documentLines.Add(line);
             }
 
-            // Сохраняем документ
             int documentId = _documentService.CreateIncomingDocument(_currentDocument, documentLines);
-
-            // Обновляем ID текущего документа
             _currentDocument.Id = documentId;
 
             ShowInfo($"Черновик сохранен. Номер документа: {_currentDocument.Number}");
@@ -567,7 +828,6 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
         {
             try
             {
-                // Обновляем данные документа
                 _currentDocument.Date = dpDocDate.SelectedDate ?? DateTime.Now;
                 _currentDocument.SupplierId = cmbSupplier.SelectedValue as int?;
                 _currentDocument.SupplierInvoiceNumber = txtInvoiceNumber.Text;
@@ -586,49 +846,63 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
                         ProductId = item.ProductId,
                         Quantity = item.Quantity,
                         UnitPrice = item.UnitPrice,
-                        SellingPrice = item.SellingPrice * 1.3m,
+                        SellingPrice = item.SellingPrice,
                         Series = item.Series,
                         ExpirationDate = item.ExpirationDate,
-                        Notes = item.Notes
+                        Notes = item.Notes,
+                        Sgtin = item.Sgtin
                     };
                     linesForDb.Add(line);
                 }
 
                 int documentId;
-                if (_currentDocument.Id == 0) // Новый документ
+                if (_currentDocument.Id == 0)
                 {
                     documentId = _documentService.CreateIncomingDocument(_currentDocument, linesForDb);
                     _currentDocument.Id = documentId;
+                    txtDocNumber.Text = _currentDocument.Number; // Update UI with real number
                 }
-                else // Редактирование существующего
+                else
                 {
                     _documentService.UpdateDocument(_currentDocument, linesForDb);
                     documentId = _currentDocument.Id;
                 }
 
-                // Проверяем, был ли документ уже отправлен в МДЛП
-                var existingMdlpDoc = await _context.MdlpDocuments
+                // Now we need a fresh context for Mdlp checks
+                using var freshContext = new PharmacyWarehouseContext();
+                var existingMdlpDoc = await freshContext.MdlpDocuments
                     .FirstOrDefaultAsync(d => d.DocumentId == _currentDocument.Id);
 
                 if (existingMdlpDoc != null)
                 {
                     MessageBox.Show($"Документ уже отправлен в МДЛП.\nСтатус: {existingMdlpDoc.StatusText}",
                         "Предупреждение", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    InitializeNewDocument();
+                    NavigateToDocumentsPage();
                     return;
                 }
 
-                // Вызываем МДЛП сервис
                 var mdlpResult = await _mdlpService.SendReceiptAsync(_currentDocument);
                 string mdlpStatusText = mdlpResult.Status == "Accepted" ? "Принято" : "Ожидает обработки";
 
-                ShowInfo($"Документ проведен успешно!\nНомер: {_currentDocument.Number}\nID: {documentId}\nМДЛП: {mdlpStatusText} (ID: {mdlpResult.MdlpDocumentId})");
-                InitializeNewDocument();
+                MessageBox.Show($"Документ проведен успешно!\nНомер: {_currentDocument.Number}\nID: {documentId}\nМДЛП: {mdlpStatusText} (ID: {mdlpResult.MdlpDocumentId})",
+                    "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                
+                NavigateToDocumentsPage();
             }
             catch (Exception ex)
             {
                 ShowError("Ошибка проведения документа", ex.Message);
             }
+        }
+    }
+
+    private void NavigateToDocumentsPage()
+    {
+        var mainWindow = Application.Current.MainWindow as MainWindow;
+        if (mainWindow != null)
+        {
+            var documentsPage = App.ServiceProvider.GetService<DocumentsPage>();
+            mainWindow.MainFrame.Navigate(documentsPage);
         }
     }
 
@@ -659,7 +933,6 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
             ShowError("Ошибка", "Введите корректный номер счета поставщика");
             return false;
         }
-
 
         return true;
     }
@@ -703,7 +976,6 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
     {
         if (_isPageLoaded && cmbProduct.SelectedItem is Product product)
         {
-            // Устанавливаем рекомендуемую цену закупки
             var lastPurchasePrice = product.Batches
                 .Where(b => b.IsActive)
                 .OrderByDescending(b => b.ArrivalDate)
@@ -713,94 +985,29 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
             if (lastPurchasePrice > 0)
             {
                 txtPurchasePrice.Text = lastPurchasePrice.ToString("N2");
+                txtSellingPrice.Text = (lastPurchasePrice * 1.3m).ToString("N2");
             }
-
-            // Показываем/скрываем поля для маркированного товара
-            if (product.IsTracked)
-            {
-                lblQuantity.Visibility = Visibility.Collapsed;
-                txtQuantity.Visibility = Visibility.Collapsed;
-                lblSgtin.Visibility = Visibility.Visible;
-                txtSgtin.Visibility = Visibility.Visible;
-                txtQuantity.Text = "1";
-            }
-            else
-            {
-                lblQuantity.Visibility = Visibility.Visible;
-                txtQuantity.Visibility = Visibility.Visible;
-                lblSgtin.Visibility = Visibility.Collapsed;
-                txtSgtin.Visibility = Visibility.Collapsed;
-                txtSgtin.Text = "";
-            }
-
-            UpdateLineTotal();
         }
     }
 
-    // Валидация числового ввода
+    private void TxtPurchasePrice_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (decimal.TryParse(txtPurchasePrice.Text, out decimal purchasePrice) && purchasePrice > 0)
+        {
+            txtSellingPrice.Text = (purchasePrice * 1.3m).ToString("N2");
+        }
+    }
+
     private void NumberValidationTextBox(object sender, TextCompositionEventArgs e)
     {
         e.Handled = !int.TryParse(e.Text, out _);
-        UpdateLineTotal();
     }
 
     private void DecimalValidationTextBox(object sender, TextCompositionEventArgs e)
     {
         var textBox = sender as TextBox;
         var newText = textBox.Text.Insert(textBox.SelectionStart, e.Text);
-
         e.Handled = !decimal.TryParse(newText, out _);
-
-        if (!e.Handled)
-            UpdateLineTotal();
-    }
-
-    private void TxtQuantity_TextChanged(object sender, TextChangedEventArgs e)
-    {
-        if (_isPageLoaded)
-            UpdateLineTotal();
-    }
-
-    private void TxtPurchasePrice_TextChanged(object sender, TextChangedEventArgs e)
-    {
-        if (_isPageLoaded)
-            UpdateLineTotal();
-    }
-
-    private void TxtSgtin_TextChanged(object sender, TextChangedEventArgs e)
-    {
-        if (!_isPageLoaded)
-            return;
-
-        if (cmbProduct.SelectedItem is not Product product || !product.IsTracked)
-            return;
-
-        var sgtin = txtSgtin.Text;
-        if (string.IsNullOrWhiteSpace(sgtin))
-        {
-            txtSgtin.ToolTip = "";
-            txtSgtin.ClearValue(TextBox.BorderBrushProperty);
-            return;
-        }
-
-        // Проверка длины
-        if (sgtin.Length != 27)
-        {
-            txtSgtin.ToolTip = "Длина SGTIN должна быть 27 символов";
-            txtSgtin.BorderBrush = System.Windows.Media.Brushes.Red;
-            return;
-        }
-
-        // Проверка GTIN
-        if (product.Gtin != null && sgtin.Substring(0, 14) != product.Gtin)
-        {
-            txtSgtin.ToolTip = $"Первые 14 символов должны совпадать с GTIN товара ({product.Gtin})";
-            txtSgtin.BorderBrush = System.Windows.Media.Brushes.Red;
-            return;
-        }
-
-        txtSgtin.ToolTip = "";
-        txtSgtin.ClearValue(TextBox.BorderBrushProperty);
     }
 
     #endregion
@@ -827,50 +1034,11 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
             MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
-    private void PrintDocument_Click(object sender, RoutedEventArgs e)
-    {
-        if (_documentItems.Count == 0)
-        {
-            ShowError("Ошибка", "Документ пуст");
-            return;
-        }
-
-        ShowInfo("Функция печати будет реализована позже");
-    }
-
-    private void AddAnotherItem_Click(object sender, RoutedEventArgs e)
-    {
-        cmbProduct.Focus();
-    }
-
-    private void ImportFromExcel_Click(object sender, RoutedEventArgs e)
-    {
-        ShowInfo("Функция импорта из Excel будет реализована позже");
-    }
-
-    private void CalculatePreview_Click(object sender, RoutedEventArgs e)
-    {
-        var preview = new StringBuilder();
-        preview.AppendLine("📊 Предварительный расчет:");
-        preview.AppendLine($"• Количество позиций: {_documentItems.Count}");
-        preview.AppendLine($"• Общая сумма: {_documentTotal:N2} руб.");
-
-        if (cmbSupplier.SelectedItem is Supplier supplier)
-        {
-            preview.AppendLine($"• Поставщик: {supplier.Name}");
-            preview.AppendLine($"• Контакт: {supplier.ContactPerson}");
-        }
-
-        MessageBox.Show(preview.ToString(), "Предварительный расчет",
-            MessageBoxButton.OK, MessageBoxImage.Information);
-    }
-
     private void CopyItem_Click(object sender, RoutedEventArgs e)
     {
         if (dgItems.SelectedItem is DocumentLine documentLine)
         {
             var product = documentLine.Product;
-
             Clipboard.SetText($"{product?.Name ?? "Неизвестный товар"} - {documentLine.Quantity} шт. - {documentLine.UnitPrice:N2} руб.");
             ShowInfo("Позиция скопирована в буфер обмена");
         }
@@ -922,51 +1090,15 @@ public partial class ReceiptPage : Page, INotifyPropertyChanged
             MessageBoxButton.OK, MessageBoxImage.Error);
     }
 
-    private void btnParseDataMatrix_Click(object sender, RoutedEventArgs e)
-    {
-        var code = txtDataMatrix.Text.Trim();
-        if (string.IsNullOrEmpty(code)) return;
-
-        var result = DataMatrixParser.Parse(code);
-
-        if (!result.IsValid)
-        {
-            txtParseResult.Text = $"Ошибка: {result.ErrorMessage}";
-            return;
-        }
-
-        if (result.Sgtin != null)
-            txtSgtin.Text = result.Sgtin;
-
-        if (result.Gtin != null)
-        {
-            var product = _allProducts.FirstOrDefault(p => p.Gtin == result.Gtin);
-            if (product != null)
-            {
-                cmbProduct.SelectedItem = product;
-                txtParseResult.Text = $"Товар найден: {product.Name}";
-            }
-            else
-            {
-                txtParseResult.Text = $"Товар с GTIN {result.Gtin} не найден в справочнике";
-            }
-        }
-
-        if (result.Series != null)
-            txtSeries.Text = result.Series;
-
-        if (result.ExpirationDate.HasValue)
-            dpExpirationDate.SelectedDate = result.ExpirationDate.Value.ToDateTime(TimeOnly.MinValue);
-    }
-
-    private void txtDataMatrix_KeyDown(object sender, KeyEventArgs e)
-    {
-        if (e.Key == Key.Enter)
-        {
-            btnParseDataMatrix_Click(sender, e);
-            e.Handled = true;
-        }
-    }
-
     #endregion
+
+    private void txtScanCode_TextChanged(object sender, TextChangedEventArgs e)
+    {
+
+    }
+
+    private void txtSeries_TextChanged(object sender, TextChangedEventArgs e)
+    {
+
+    }
 }

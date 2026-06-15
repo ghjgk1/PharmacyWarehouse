@@ -1,5 +1,6 @@
-﻿using System.Windows;
+using System.Windows;
 using PharmacyWarehouse.Services;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace PharmacyWarehouse;
 
@@ -33,10 +34,14 @@ public partial class LoginWindow : Window
             return;
         }
 
-        // Открываем главное окно
-        var mainWindow = new MainWindow();
-        mainWindow.Show();
-        this.Close();
+        // Открываем главное окно from ServiceProvider
+        var mainWindow = App.ServiceProvider.GetService<MainWindow>();
+        if (mainWindow != null)
+        {
+            Application.Current.MainWindow = mainWindow;
+            mainWindow.Show();
+            this.Close();
+        }
     }
 
     private void ExitButton_Click(object sender, RoutedEventArgs e)

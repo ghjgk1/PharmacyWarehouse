@@ -7,8 +7,8 @@ namespace PharmacyWarehouse.Models;
 public partial class MdlpSgtin : ObservableObject
 {
     private int _id;
-    private int _productId;
-    private int _batchId;
+    private int? _productId;
+    private int? _batchId;
     private string _sgtin = null!;
     private string? _gtin;
     private string? _serialNumber;
@@ -24,7 +24,13 @@ public partial class MdlpSgtin : ObservableObject
         set => SetProperty(ref _id, value);
     }
 
-    public int BatchId
+    public int? ProductId
+    {
+        get => _productId;
+        set => SetProperty(ref _productId, value);
+    }
+
+    public int? BatchId
     {
         get => _batchId;
         set => SetProperty(ref _batchId, value);
@@ -34,14 +40,6 @@ public partial class MdlpSgtin : ObservableObject
     {
         get => _sgtin;
         set => SetProperty(ref _sgtin, value);
-    }
-
-    
-    [NotMapped]
-    public int ProductId
-    {
-        get => _productId;
-        set => SetProperty(ref _productId, value);
     }
 
     [NotMapped]
@@ -89,8 +87,9 @@ public partial class MdlpSgtin : ObservableObject
     }
 
     [NotMapped]
-    public virtual Product Product { get; set; } = null!;
-    public virtual Batch Batch { get; set; } = null!;
+    public virtual Product? Product { get; set; }
+    [NotMapped]
+    public virtual Batch? Batch { get; set; }
 
     public virtual MdlpDocument? MdlpDocument { get; set; }
 
@@ -105,6 +104,7 @@ public partial class MdlpSgtin : ObservableObject
                 "InCirculation" => "В обороте",
                 "Sold" => "Продан",
                 "Shipped" => "Отгружено",
+                "RetailSold" => "Продан в розницу",
                 "WrittenOff" => "Списан",
                 "Withdrawn" => "Изъят",
                 _ => Status
@@ -123,6 +123,7 @@ public partial class MdlpSgtin : ObservableObject
                 "InCirculation" => Brushes.Green,
                 "Sold" => Brushes.Orange,
                 "Shipped" => Brushes.Purple,
+                "RetailSold" => Brushes.Orange,
                 "WrittenOff" => Brushes.Red,
                 "Withdrawn" => Brushes.DarkRed,
                 _ => Brushes.Gray

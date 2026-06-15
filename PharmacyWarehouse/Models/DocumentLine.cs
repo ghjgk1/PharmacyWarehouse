@@ -29,6 +29,7 @@ public partial class DocumentLine : ObservableObject
 
     // Для МДЛП
     private string? _sgtin;
+    private Product _product = null!;
 
     public int Id
     {
@@ -46,6 +47,13 @@ public partial class DocumentLine : ObservableObject
     {
         get => _productId;
         set => SetProperty(ref _productId, value);
+    }
+
+    [NotMapped]
+    public Product Product
+    {
+        get => _product;
+        set => SetProperty(ref _product, value);
     }
 
     public string Series
@@ -118,11 +126,9 @@ public partial class DocumentLine : ObservableObject
     public decimal TotalPrice => Quantity * UnitPrice;
 
     public virtual Document Document { get; set; } = null!;
-    public virtual Product Product { get; set; } = null!;
     public virtual Batch? CreatedBatch { get; set; }
     public virtual Batch? SourceBatch { get; set; }
 
-    [NotMapped]
     public string? Sgtin
     {
         get => _sgtin;

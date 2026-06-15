@@ -17,7 +17,8 @@ public class StatusToTextConverter : IValueConverter
             "Processing" => "Обрабатывается",
             "InCirculation" => "В обороте",
             "Shipped" => "Отгружен",
-            "Withdrawn" => "Списан",
+            "WrittenOff" => "Списан",
+            "Withdrawn" => "Изъят",
             _ => value
         };
     }
@@ -40,7 +41,8 @@ public class StatusToColorConverter : IValueConverter
             "Processing" => Brushes.Blue,
             "InCirculation" => Brushes.Green,
             "Shipped" => Brushes.Blue,
-            "Withdrawn" => Brushes.Gray,
+            "WrittenOff" => Brushes.Red,
+            "Withdrawn" => Brushes.DarkRed,
             _ => Brushes.Gray
         };
     }

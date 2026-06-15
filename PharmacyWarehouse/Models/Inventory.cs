@@ -66,4 +66,12 @@ public partial class Inventory : ObservableObject
 
     [NotMapped]
     public string DisplayText => $"{Number} ({InventoryDate:dd.MM.yyyy})";
+
+    [NotMapped]
+    public string DisplayStatus => Status switch
+    {
+        "Draft" => "Черновик",
+        "Completed" => "Завершен",
+        _ => Status
+    };
 }

@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using PharmacyWarehouse.Models;
 using System.IO;
@@ -23,6 +23,7 @@ public partial class PharmacyWarehouseContext : DbContext
     public virtual DbSet<MdlpSgtin> MdlpSgtins { get; set; }
     public virtual DbSet<Inventory> Inventories { get; set; }
     public virtual DbSet<InventoryLine> InventoryLines { get; set; }
+    public virtual DbSet<InventoryScannedCode> InventoryScannedCodes { get; set; }
     public virtual DbSet<Product> Products { get; set; }
     public virtual DbSet<Supplier> Suppliers { get; set; }
     public virtual DbSet<User> Users { get; set; }
@@ -35,17 +36,16 @@ public partial class PharmacyWarehouseContext : DbContext
                 .SetBasePath(Directory.GetCurrentDirectory())
                 .AddJsonFile("appsettings.json")
                 .Build();
-            optionsBuilder.UseSqlServer(
-                configuration.GetConnectionString("DefaultConnection"),
-                options => options.EnableRetryOnFailure());
 
+            // EnableRetryOnFailure удалён: несовместимо с ручными транзакциями (BeginTransaction)
+            optionsBuilder.UseSqlServer(
+                configuration.GetConnectionString("DefaultConnection"));
         }
 #if DEBUG
         optionsBuilder.LogTo(msg => System.IO.File.AppendAllText(
            Path.Combine(Directory.GetCurrentDirectory(), "ef_log.txt"), msg + "\n"),
            Microsoft.Extensions.Logging.LogLevel.Error);
 #endif
-
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -129,6 +129,17 @@ public partial class PharmacyWarehouseContext : DbContext
             entity.HasOne(d => d.Batch).WithMany()
                 .HasForeignKey(d => d.BatchId)
                 .OnDelete(DeleteBehavior.ClientSetNull);
+        });
+
+        modelBuilder.Entity<InventoryScannedCode>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("ID");
+            entity.Property(e => e.Sgtin).HasMaxLength(27);
+
+            entity.HasOne(d => d.InventoryLine).WithMany(p => p.InventoryScannedCodes)
+                .HasForeignKey(d => d.InventoryLineId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<Category>(entity =>
@@ -351,7 +362,6 @@ public partial class PharmacyWarehouseContext : DbContext
             entity.Property(e => e.PasswordHash).HasMaxLength(100);
             entity.Property(e => e.Role).HasMaxLength(20);
             entity.Property(e => e.Role).HasConversion<string>();
-
         });
 
         OnModelCreatingPartial(modelBuilder);

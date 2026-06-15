@@ -30,6 +30,15 @@ public static class DataMatrixParser
             return result;
         }
 
+        // Check if code is exactly 31 characters (without GS separators) or has valid length with GS
+        // Cleaned code (remove GS) should be exactly 31 characters
+        var cleanedCode = code.Replace(Gs.ToString(), "").Replace("\x1D", "");
+        if (cleanedCode.Length != 31)
+        {
+            result.ErrorMessage = $"Код должен содержать ровно 31 символ (без разделителей). Текущая длина: {cleanedCode.Length}";
+            return result;
+        }
+
         code = code.Replace(Gs.ToString(), Gs.ToString())
                    .Replace(((char)29).ToString(), Gs.ToString());
 
@@ -70,11 +79,11 @@ public static class DataMatrixParser
                         break;
 
                     case "10":
-                        result.Series = ReadVariableField(code, ref pos);
+                        result.Series = ReadVariableFieldWithoutAiCheck(code, ref pos);
                         break;
 
                     case "21":
-                        result.SerialNumber = ReadVariableField(code, ref pos);
+                        result.SerialNumber = ReadVariableFieldWithoutAiCheck(code, ref pos);
                         break;
 
                     default:
@@ -91,10 +100,8 @@ public static class DataMatrixParser
 
             if (!string.IsNullOrEmpty(result.SerialNumber))
             {
-                var serial = result.SerialNumber.PadLeft(13, '0');
-                if (serial.Length > 13)
-                    serial = serial[^13..];
-                result.Sgtin = result.Gtin + serial;
+                // SGTIN is GTIN + Serial Number (no padding, just concatenate)
+                result.Sgtin = result.Gtin + result.SerialNumber;
             }
 
             result.IsValid = true;
@@ -154,6 +161,23 @@ public static class DataMatrixParser
             if (pos + 3 <= code.Length && IsAiPrefix(code.Substring(pos, 3)))
                 break;
 
+            pos++;
+        }
+
+        return code.Substring(start, pos - start);
+    }
+
+    private static string ReadVariableFieldWithoutAiCheck(string code, ref int pos)
+    {
+        var start = pos;
+        while (pos < code.Length)
+        {
+            if (code[pos] == Gs)
+            {
+                var value = code.Substring(start, pos - start);
+                pos++;
+                return value;
+            }
             pos++;
         }
 

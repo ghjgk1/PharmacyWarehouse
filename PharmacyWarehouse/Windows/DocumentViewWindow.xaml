@@ -1,4 +1,4 @@
-﻿<Window x:Class="PharmacyWarehouse.Windows.DocumentViewWindow"
+<Window x:Class="PharmacyWarehouse.Windows.DocumentViewWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -93,7 +93,7 @@
                                        Text="Статус:" 
                                        Style="{StaticResource BodyText}"/>
                             <TextBlock Grid.Row="0" Grid.Column="5" 
-                                       Text="{Binding Document.Status}" 
+                                       Text="{Binding Document.StatusDescription}" 
                                        Margin="8,0,0,0">
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock" BasedOn="{StaticResource ValueText}">

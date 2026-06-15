@@ -1,4 +1,4 @@
-﻿<Page x:Class="PharmacyWarehouse.Pages.DocumentsPage"
+<Page x:Class="PharmacyWarehouse.Pages.DocumentsPage"
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
@@ -169,12 +169,12 @@
                             <!-- Тип документа -->
                             <StackPanel Grid.Column="1" Grid.Row="0" Margin="0,0,12,8">
                                 <TextBlock Text="Тип документа" Style="{StaticResource BodyText}" Margin="0,0,0,4"/>
-                                <ComboBox x:Name="cmbDocumentType" 
-                                          SelectionChanged="CmbDocumentType_SelectionChanged">
+                                <ComboBox x:Name="cmbDocumentType" SelectionChanged="CmbDocumentType_SelectionChanged">
                                     <ComboBoxItem Content="Все типы" IsSelected="True"/>
                                     <ComboBoxItem Content="📥 Приход" Tag="Incoming"/>
                                     <ComboBoxItem Content="📤 Расход" Tag="Outgoing"/>
                                     <ComboBoxItem Content="🗑️ Списание" Tag="WriteOff"/>
+                                    <ComboBoxItem Content="📋 Инвентаризация" Tag="Inventory"/>
                                 </ComboBox>
                             </StackPanel>
 
@@ -268,6 +268,10 @@
                                        Text="Списание: 0" 
                                        Style="{StaticResource BodyText}"
                                        Foreground="{StaticResource AccentRedBrush}"/>
+                            <TextBlock x:Name="txtInventoryCount" 
+                                       Text="Инвентаризации: 0" 
+                                       Style="{StaticResource BodyText}"
+                                       Foreground="{StaticResource PrimaryBrush}"/>
                             <Separator Margin="0,8,0,8"/>
                             <TextBlock x:Name="txtDraftCount" 
                                        Text="Черновики: 0" 
@@ -428,6 +432,10 @@
                                             <!-- Для списания - красный -->
                                             <DataTrigger Binding="{Binding Type}" Value="WriteOff">
                                                 <Setter Property="Foreground" Value="{StaticResource AccentRedBrush}"/>
+                                            </DataTrigger>
+                                            <!-- Для инвентаризации - серый -->
+                                            <DataTrigger Binding="{Binding Type}" Value="Inventory">
+                                                <Setter Property="Foreground" Value="Gray"/>
                                             </DataTrigger>
                                         </Style.Triggers>
                                     </Style>

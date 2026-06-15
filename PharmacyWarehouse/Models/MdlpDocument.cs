@@ -9,6 +9,7 @@ public partial class MdlpDocument : ObservableObject
 {
     private int _id;
     private int _documentId;
+    private int? _previousMdlpDocumentId;
     private string? _mdlpDocumentId;
     private string _operationType = null!;
     private string _status = null!;
@@ -22,7 +23,7 @@ public partial class MdlpDocument : ObservableObject
     private string? _ticket;
     private string? _errorCode;
     private string? _errorDetails;
-    private int _retryCount;
+    private int? _retryCount;
 
     public int Id
     {
@@ -35,6 +36,18 @@ public partial class MdlpDocument : ObservableObject
         get => _documentId;
         set => SetProperty(ref _documentId, value);
     }
+
+    [NotMapped]
+    public int? PreviousMdlpDocumentId
+    {
+        get => _previousMdlpDocumentId;
+        set => SetProperty(ref _previousMdlpDocumentId, value);
+    }
+
+    [NotMapped]
+    public virtual MdlpDocument? PreviousMdlpDocument { get; set; }
+    [NotMapped]
+    public virtual ICollection<MdlpDocument> SubsequentMdlpDocuments { get; set; } = new List<MdlpDocument>();
 
     public string? MdlpDocumentId
     {
@@ -114,7 +127,7 @@ public partial class MdlpDocument : ObservableObject
         set => SetProperty(ref _errorDetails, value);
     }
 
-    public int RetryCount
+    public int? RetryCount
     {
         get => _retryCount;
         set => SetProperty(ref _retryCount, value);
@@ -183,11 +196,14 @@ public partial class MdlpDocument : ObservableObject
     public bool IsError => Status == "Error";
 
     [NotMapped]
+    public bool IsFinal => Status is "Accepted" or "Rejected" or "Success";
+
+    [NotMapped]
     public bool CanRetry
     {
         get
         {
-            return Status == "Error" && RetryCount < (MdlpSetting?.MaxRetries ?? 3);
+            return IsError && !SubsequentMdlpDocuments.Any();
         }
     }
 

@@ -43,22 +43,10 @@ namespace PharmacyWarehouse
             services.AddSingleton<MdlpErrorGenerator>();
             services.AddSingleton<MdlpStatusPoller>();
 
-            // Читаем настройки МДЛП для выбора реализации
-            using (var tempScope = services.BuildServiceProvider().CreateScope())
-            {
-                var tempContext = tempScope.ServiceProvider.GetRequiredService<PharmacyWarehouseContext>();
-                var settings = tempContext.MdlpSettings.FirstOrDefault();
-                bool useMock = settings == null || settings.UseMock;
-
-                if (useMock)
-                {
-                    services.AddScoped<IMdlpService, MdlpMockService>();
-                }
-                else
-                {
-                    services.AddScoped<IMdlpService, MdlpRealService>();
-                }
-            }
+            // Регистрируем обе реализации и прокси
+            services.AddScoped<MdlpMockService>();
+            services.AddScoped<MdlpRealService>();
+            services.AddScoped<IMdlpService, MdlpServiceProxy>();
 
             // Регистрируем окна/страницы
             services.AddSingleton<MainWindow>();

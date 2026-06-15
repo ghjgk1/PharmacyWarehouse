@@ -57,11 +57,17 @@ public partial class MdlpPage : Page
             _documents = new ObservableCollection<MdlpDocument>(docs);
             dgDocuments.ItemsSource = _documents;
 
+            var products = context.Products.ToList();
+            var batches = context.Batches.ToList();
             var sgtins = context.MdlpSgtins
-                .Include(s => s.Batch)
-                .ThenInclude(b => b.Product)
                 .OrderByDescending(s => s.CreatedAt)
                 .ToList();
+
+            foreach (var sgtin in sgtins)
+            {
+                sgtin.Batch = batches.FirstOrDefault(b => b.Id == sgtin.BatchId);
+                sgtin.Product = products.FirstOrDefault(p => p.Id == sgtin.Batch?.ProductId);
+            }
 
             _sgtins = new ObservableCollection<MdlpSgtin>(sgtins);
             dgSgtins.ItemsSource = _sgtins;
@@ -167,47 +173,7 @@ public partial class MdlpPage : Page
     {
         try
         {
-            // Загрузить оригинальный документ с линиями и продуктами
-            var document = await _context.Documents
-                .Include(d => d.DocumentLines)
-                .ThenInclude(dl => dl.Product)
-                .FirstOrDefaultAsync(d => d.Id == doc.DocumentId);
-
-            if (document == null)
-            {
-                MessageBox.Show("Оригинальный документ не найден", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-                return;
-            }
-
-            MdlpDocument result;
-            switch (doc.OperationType)
-            {
-                case "Income":
-                    result = await _mdlpService.SendReceiptAsync(document);
-                    break;
-                case "Outcome":
-                    result = await _mdlpService.SendOutgoingAsync(document);
-                    break;
-                case "WriteOff":
-                    result = await _mdlpService.SendWriteOffAsync(document);
-                    break;
-                default:
-                    MessageBox.Show("Неизвестный тип операции", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-                    return;
-            }
-
-            // Обновить документ в базе
-            doc.RetryCount++;
-            doc.Status = result.Status;
-            doc.RequestXml = result.RequestXml;
-            doc.ResponseXml = result.ResponseXml;
-            doc.SentAt = result.SentAt;
-            doc.ProcessedAt = result.ProcessedAt;
-            doc.ErrorMessage = result.ErrorMessage;
-            doc.ErrorCode = result.ErrorCode;
-            doc.ErrorDetails = result.ErrorDetails;
-
-            await _context.SaveChangesAsync();
+            await _mdlpService.RetryDocumentAsync(doc);
 
             MessageBox.Show("Повторная отправка выполнена!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
             LoadData();

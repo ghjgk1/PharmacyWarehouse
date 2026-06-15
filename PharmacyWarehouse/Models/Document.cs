@@ -11,6 +11,7 @@ public enum DocumentType
     Outgoing,     // Расходная накладная  
     WriteOff,     // Акт списания
     Correction,   // Корректировочный документ
+    Inventory,    // Акт инвентаризации
 }
 
 public enum DocumentStatus
@@ -31,6 +32,7 @@ public enum WriteOffReason
     StorageViolation,        // Нарушение условий хранения
     Utilization,             // Утилизация
     InventoryDifference,     // Инвентаризационная разница
+    Defective,
     Other                    // Иное
 }
 
@@ -224,7 +226,18 @@ public partial class Document : ObservableObject
         DocumentType.Incoming => "Приходная накладная",
         DocumentType.Outgoing => "Расходная накладная",
         DocumentType.WriteOff => "Акт списания",
+        DocumentType.Inventory => "Акт инвентаризации",
+        DocumentType.Correction => "Корректировочный документ",
         _ => "Неизвестный тип"
+    };
+
+    [NotMapped]
+    public string StatusDescription => Status switch
+    {
+        DocumentStatus.Draft => "Черновик",
+        DocumentStatus.Processed => "Проведен",
+        DocumentStatus.Blocked => "Заблокирован",
+        _ => Status.ToString()
     };
 
     public virtual ICollection<DocumentLine> DocumentLines { get; set; } = new ObservableCollection<DocumentLine>();

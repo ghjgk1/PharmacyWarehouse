@@ -7,13 +7,12 @@ namespace PharmacyWarehouse.Services;
 
 public class ReportService
 {
-    private readonly PharmacyWarehouseContext _db = BaseDbService.Instance.Context;
-
     public List<StockReportRow> GetStockReport(DateTime date)
     {
+        using var db = new PharmacyWarehouseContext();
         var reportDate = DateOnly.FromDateTime(date);
 
-        return _db.Batches
+        return db.Batches
             .Include(b => b.Product)
                 .ThenInclude(p => p.Category)
             .Where(b => b.ArrivalDate <= reportDate && b.Quantity > 0 && b.IsActive)
@@ -33,10 +32,11 @@ public class ReportService
 
     public List<MovementReportRow> GetMovementReport(DateTime from, DateTime to)
     {
+        using var db = new PharmacyWarehouseContext();
         var fromDate = from.Date;
         var toDate = to.Date;
 
-        var lines = _db.DocumentLines
+        var lines = db.DocumentLines
             .Include(l => l.Product)
             .Include(l => l.Document)
             .Where(l => l.Document.Status == DocumentStatus.Processed
@@ -46,7 +46,7 @@ public class ReportService
 
         var productIds = lines.Select(l => l.ProductId).Distinct().ToList();
 
-        var allProducts = _db.Products
+        var allProducts = db.Products
             .Where(p => productIds.Contains(p.Id))
             .Include(p => p.Batches)
             .ToList();
@@ -90,10 +90,11 @@ public class ReportService
 
     public List<SalesAnalysisRow> GetSalesAnalysis(DateTime from, DateTime to, int topN = 10)
     {
+        using var db = new PharmacyWarehouseContext();
         var fromDate = from.Date;
         var toDate = to.Date;
 
-        var sales = _db.DocumentLines
+        var sales = db.DocumentLines
             .Include(l => l.Product)
             .Include(l => l.Document)
             .Where(l => l.Document.Type == DocumentType.Outgoing
@@ -124,7 +125,8 @@ public class ReportService
 
     public List<Inventory> GetCompletedInventories()
     {
-        return _db.Inventories
+        using var db = new PharmacyWarehouseContext();
+        return db.Inventories
             .Where(i => i.Status == "Completed")
             .OrderByDescending(i => i.InventoryDate)
             .ToList();
@@ -132,7 +134,8 @@ public class ReportService
 
     public List<InventoryReportRow> GetInventoryReport(int inventoryId)
     {
-        return _db.InventoryLines
+        using var db = new PharmacyWarehouseContext();
+        return db.InventoryLines
             .Include(l => l.Batch)
                 .ThenInclude(b => b.Product)
             .Where(l => l.InventoryId == inventoryId)

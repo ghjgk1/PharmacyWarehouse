@@ -9,11 +9,10 @@ namespace PharmacyWarehouse.Services;
 
 public class DocumentService
 {
-    private readonly PharmacyWarehouseContext _db = BaseDbService.Instance.Context;
     public ObservableCollection<Document> Documents { get; set; } = new();
     private readonly AuthService _authService;
     private readonly IServiceProvider _serviceProvider;
-    private string _currentUser = String.Empty; 
+    private string _currentUser = String.Empty;
 
     public DocumentService()
     {
@@ -24,39 +23,35 @@ public class DocumentService
         GetAll();
     }
 
-    public int Commit() => _db.SaveChanges();
-
     public int CreateOutgoing(Document document, List<DocumentLine> lines)
     {
-        using var transaction = _db.Database.BeginTransaction();
+        using var db = new PharmacyWarehouseContext();
+        using var transaction = db.Database.BeginTransaction();
 
         try
         {
             var amount = document.Amount;
 
-            // Проверяем, новый ли это документ или редактирование существующего
-            if (document.Id == 0) // Новый документ
+            if (document.Id == 0)
             {
-                document.Number = GenerateDocumentNumber(DocumentType.Outgoing);
+                document.Number = GenerateDocumentNumber(DocumentType.Outgoing, db);
                 document.Type = DocumentType.Outgoing;
                 document.CreatedAt = DateTime.Now;
 
                 if (document.Date == default(DateTime))
                     document.Date = DateTime.Now;
 
-                _db.Documents.Add(document);
+                db.Documents.Add(document);
             }
-            else // Редактирование существующего документа
+            else
             {
-                // Загружаем существующий документ
-                var existingDocument = _db.Documents
+                var existingDocument = db.Documents
                     .Include(d => d.DocumentLines)
                     .FirstOrDefault(d => d.Id == document.Id);
 
                 if (existingDocument == null)
                     throw new Exception("Документ не найден");
 
-                // Обновляем свойства документа
                 existingDocument.Date = document.Date;
                 existingDocument.CustomerName = document.CustomerName;
                 existingDocument.CustomerDocument = document.CustomerDocument;
@@ -66,56 +61,40 @@ public class DocumentService
                 existingDocument.SignedBy = document.SignedBy;
                 existingDocument.SignedAt = document.SignedAt;
 
-                // Удаляем старые строки документа
-                _db.DocumentLines.RemoveRange(existingDocument.DocumentLines);
+                db.DocumentLines.RemoveRange(existingDocument.DocumentLines);
 
                 document = existingDocument;
             }
 
-            _db.SaveChanges();
+            db.SaveChanges();
 
-            // Если документ проводится (не черновик), списываем товары из партий
             if (document.Status == DocumentStatus.Processed)
             {
                 foreach (var line in lines)
                 {
-                    var product = _db.Products.FirstOrDefault(p => p.Id == line.ProductId);
+                    var product = db.Products.FirstOrDefault(p => p.Id == line.ProductId);
                     if (product != null && product.IsTracked)
                     {
-                        // Для маркированных товаров - используем Sgtin
                         if (string.IsNullOrEmpty(line.Sgtin))
-                        {
                             throw new InvalidOperationException($"Для товара '{product.Name}' необходимо указать код маркировки (SGTIN)");
-                        }
 
-                        var sgtin = _db.MdlpSgtins.FirstOrDefault(s => s.Sgtin == line.Sgtin);
+                        var sgtin = db.MdlpSgtins.FirstOrDefault(s => s.Sgtin == line.Sgtin);
                         if (sgtin == null)
-                        {
                             throw new InvalidOperationException($"Код маркировки '{line.Sgtin}' не найден");
-                        }
 
                         if (sgtin.Status != "InCirculation")
-                        {
                             throw new InvalidOperationException($"Код маркировки '{line.Sgtin}' имеет неверный статус: {sgtin.Status}");
-                        }
 
                         if (sgtin.BatchId == null)
-                        {
                             throw new InvalidOperationException($"Код маркировки '{line.Sgtin}' не привязан к партии");
-                        }
 
-                        var batch = _db.Batches.FirstOrDefault(b => b.Id == sgtin.BatchId);
+                        var batch = db.Batches.FirstOrDefault(b => b.Id == sgtin.BatchId);
                         if (batch == null)
-                        {
                             throw new InvalidOperationException($"Партия для кода маркировки '{line.Sgtin}' не найдена");
-                        }
 
                         if (batch.Quantity < 1)
-                        {
                             throw new InvalidOperationException($"Недостаточно товара в партии");
-                        }
 
-                        // Создаем строку документа
                         var batchLine = new DocumentLine
                         {
                             DocumentId = document.Id,
@@ -130,22 +109,19 @@ public class DocumentService
                             Sgtin = line.Sgtin
                         };
 
-                        _db.DocumentLines.Add(batchLine);
+                        db.DocumentLines.Add(batchLine);
 
-                        // Уменьшаем количество в партии
+                        // Уменьшаем остаток в партии
                         batch.Quantity -= 1;
                         if (batch.Quantity == 0)
                             batch.IsActive = false;
 
-                        // Обновляем статус SGTIN
-                        sgtin.PreviousStatus = sgtin.Status;
-                        sgtin.Status = "Shipped";
-                        sgtin.StatusChangedAt = DateTime.Now;
+                        // SGTIN статус НЕ меняем здесь — это сделает MdlpMockService
+                        // после успешного подтверждения из МДЛП (UpdateSgtinStatusesAsync)
                     }
                     else
                     {
-                        // Для немаркированных товаров - как раньше
-                        var batches = _db.Batches
+                        var batches = db.Batches
                             .Where(b => b.ProductId == line.ProductId &&
                                        b.IsActive &&
                                        b.Quantity > 0)
@@ -163,23 +139,21 @@ public class DocumentService
 
                             int toTake = Math.Min(batch.Quantity, remaining);
 
-                            // СОЗДАЕМ СТРОКУ ДОКУМЕНТА с данными из партии
                             var batchLine = new DocumentLine
                             {
                                 DocumentId = document.Id,
                                 ProductId = line.ProductId,
                                 Quantity = toTake,
-                                UnitPrice = batch.SellingPrice, 
-                                SellingPrice = batch.SellingPrice, 
-                                Series = batch.Series, 
+                                UnitPrice = batch.SellingPrice,
+                                SellingPrice = batch.SellingPrice,
+                                Series = batch.Series,
                                 ExpirationDate = batch.ExpirationDate,
                                 SourceBatchId = batch.Id,
                                 Notes = line.Notes
                             };
 
-                            _db.DocumentLines.Add(batchLine);
+                            db.DocumentLines.Add(batchLine);
 
-                            // Уменьшаем количество в партии
                             batch.Quantity -= toTake;
                             if (batch.Quantity == 0)
                                 batch.IsActive = false;
@@ -191,32 +165,24 @@ public class DocumentService
 
                 document.SignedAt = DateTime.Now;
                 if (string.IsNullOrEmpty(document.SignedBy))
-                    document.SignedBy = _currentUser;   
+                    document.SignedBy = _currentUser;
             }
-            else // Черновик - создаем строки без списания из партий
+            else
             {
                 foreach (var line in lines)
                 {
-                    // Для черновика series должно быть заполнено из входных данных
-                    // или из первой доступной партии
                     string series;
-
                     if (!string.IsNullOrEmpty(line.Series))
                     {
-                        // Если серия указана в строке, используем ее
                         series = line.Series;
                     }
                     else
                     {
-                        // Иначе берем серию из первой доступной партии
-                        var batch = _db.Batches
-                            .Where(b => b.ProductId == line.ProductId &&
-                                       b.IsActive &&
-                                       b.Quantity > 0)
+                        var batch = db.Batches
+                            .Where(b => b.ProductId == line.ProductId && b.IsActive && b.Quantity > 0)
                             .OrderBy(b => b.ExpirationDate)
                             .FirstOrDefault();
-
-                        series = batch?.Series ?? "БЕЗ СЕРИИ"; // Значение по умолчанию
+                        series = batch?.Series ?? "БЕЗ СЕРИИ";
                     }
 
                     var documentLine = new DocumentLine
@@ -226,20 +192,20 @@ public class DocumentService
                         Quantity = line.Quantity,
                         UnitPrice = line.UnitPrice,
                         SellingPrice = line.SellingPrice,
-                        Series = series, 
+                        Series = series,
                         ExpirationDate = line.ExpirationDate,
                         Notes = line.Notes,
                         CreatedBatchId = null,
                         SourceBatchId = null
                     };
 
-                    _db.DocumentLines.Add(documentLine);
+                    db.DocumentLines.Add(documentLine);
                 }
             }
 
             document.Amount = amount;
 
-            _db.SaveChanges();
+            db.SaveChanges();
             transaction.Commit();
 
             GetAll();
@@ -255,7 +221,8 @@ public class DocumentService
 
     public Document GetDocumentWithDetails(int documentId)
     {
-        return _db.Documents
+        using var db = new PharmacyWarehouseContext();
+        return db.Documents
             .Include(d => d.DocumentLines)
                 .ThenInclude(l => l.Product)
             .Include(d => d.DocumentLines)
@@ -270,37 +237,33 @@ public class DocumentService
 
     public int CreateWriteOff(Document document, List<DocumentLine> lines)
     {
-        using var transaction = _db.Database.BeginTransaction();
+        using var db = new PharmacyWarehouseContext();
+        using var transaction = db.Database.BeginTransaction();
 
         try
         {
-            // Инициализируем сумму документа
             decimal totalAmount = 0;
 
-            // Проверяем, новый ли это документ или редактирование существующего
-            if (document.Id == 0) // Новый документ
+            if (document.Id == 0)
             {
-                // Генерируем номер для списания
-                document.Number = GenerateDocumentNumber(DocumentType.WriteOff);
+                document.Number = GenerateDocumentNumber(DocumentType.WriteOff, db);
                 document.Type = DocumentType.WriteOff;
                 document.CreatedAt = DateTime.Now;
 
                 if (document.Date == default(DateTime))
                     document.Date = DateTime.Now;
 
-                _db.Documents.Add(document);
+                db.Documents.Add(document);
             }
-            else // Редактирование существующего документа
+            else
             {
-                // Загружаем существующий документ
-                var existingDocument = _db.Documents
+                var existingDocument = db.Documents
                     .Include(d => d.DocumentLines)
                     .FirstOrDefault(d => d.Id == document.Id);
 
                 if (existingDocument == null)
                     throw new Exception("Документ не найден");
 
-                // Обновляем свойства документа
                 existingDocument.Date = document.Date;
                 existingDocument.CustomerName = document.CustomerName;
                 existingDocument.CustomerDocument = document.CustomerDocument;
@@ -311,56 +274,40 @@ public class DocumentService
                 existingDocument.Type = DocumentType.WriteOff;
                 existingDocument.WriteOffReason = document.WriteOffReason;
 
-                // Удаляем старые строки документа
-                _db.DocumentLines.RemoveRange(existingDocument.DocumentLines);
+                db.DocumentLines.RemoveRange(existingDocument.DocumentLines);
 
                 document = existingDocument;
             }
 
-            _db.SaveChanges();
+            db.SaveChanges();
 
-            // Если документ проводится (не черновик), списываем товары
             if (document.Status == DocumentStatus.Processed)
             {
                 foreach (var line in lines)
                 {
-                    var product = _db.Products.FirstOrDefault(p => p.Id == line.ProductId);
+                    var product = db.Products.FirstOrDefault(p => p.Id == line.ProductId);
                     if (product != null && product.IsTracked)
                     {
-                        // Для маркированных товаров - используем Sgtin
                         if (string.IsNullOrEmpty(line.Sgtin))
-                        {
                             throw new InvalidOperationException($"Для товара '{product.Name}' необходимо указать код маркировки (SGTIN)");
-                        }
 
-                        var sgtin = _db.MdlpSgtins.FirstOrDefault(s => s.Sgtin == line.Sgtin);
+                        var sgtin = db.MdlpSgtins.FirstOrDefault(s => s.Sgtin == line.Sgtin);
                         if (sgtin == null)
-                        {
                             throw new InvalidOperationException($"Код маркировки '{line.Sgtin}' не найден");
-                        }
 
                         if (sgtin.Status != "InCirculation")
-                        {
                             throw new InvalidOperationException($"Код маркировки '{line.Sgtin}' имеет неверный статус: {sgtin.Status}");
-                        }
 
                         if (sgtin.BatchId == null)
-                        {
                             throw new InvalidOperationException($"Код маркировки '{line.Sgtin}' не привязан к партии");
-                        }
 
-                        var batch = _db.Batches.FirstOrDefault(b => b.Id == sgtin.BatchId);
+                        var batch = db.Batches.FirstOrDefault(b => b.Id == sgtin.BatchId);
                         if (batch == null)
-                        {
                             throw new InvalidOperationException($"Партия для кода маркировки '{line.Sgtin}' не найдена");
-                        }
 
                         if (batch.Quantity < 1)
-                        {
                             throw new InvalidOperationException($"Недостаточно товара в партии");
-                        }
 
-                        // Создаем строку документа
                         var batchLine = new DocumentLine
                         {
                             DocumentId = document.Id,
@@ -375,25 +322,21 @@ public class DocumentService
                             Sgtin = line.Sgtin
                         };
 
-                        _db.DocumentLines.Add(batchLine);
+                        db.DocumentLines.Add(batchLine);
 
-                        // Уменьшаем количество в партии
+                        // Уменьшаем остаток в партии
                         batch.Quantity -= 1;
                         if (batch.Quantity == 0)
                             batch.IsActive = false;
 
-                        // Обновляем статус SGTIN
-                        sgtin.PreviousStatus = sgtin.Status;
-                        sgtin.Status = "Withdrawn";
-                        sgtin.StatusChangedAt = DateTime.Now;
-
-                        // Добавляем сумму
                         totalAmount += batch.SellingPrice * 1;
+
+                        // SGTIN статус НЕ меняем здесь — это сделает MdlpMockService
+                        // после успешного подтверждения из МДЛП (UpdateSgtinStatusesAsync)
                     }
                     else
                     {
-                        // Для немаркированных товаров - как раньше
-                        var batches = _db.Batches
+                        var batches = db.Batches
                             .Where(b => b.ProductId == line.ProductId &&
                                        b.IsActive &&
                                        b.Quantity > 0)
@@ -411,7 +354,6 @@ public class DocumentService
 
                             int toTake = Math.Min(batch.Quantity, remaining);
 
-                            // Рассчитываем сумму для этой строки
                             decimal lineAmount = batch.SellingPrice * toTake;
                             totalAmount += lineAmount;
 
@@ -428,7 +370,7 @@ public class DocumentService
                                 Notes = line.Notes
                             };
 
-                            _db.DocumentLines.Add(batchLine);
+                            db.DocumentLines.Add(batchLine);
 
                             batch.Quantity -= toTake;
                             if (batch.Quantity == 0)
@@ -443,30 +385,25 @@ public class DocumentService
                 if (string.IsNullOrEmpty(document.SignedBy))
                     document.SignedBy = _currentUser;
             }
-            else // Для черновика просто добавляем строки без списания
+            else
             {
                 foreach (var line in lines)
                 {
-                    // Ищем исходные данные из партий для заполнения обязательных полей
-                    var batch = _db.Batches
+                    var batch = db.Batches
                         .Where(b => b.ProductId == line.ProductId &&
                                    b.IsActive &&
                                    b.Quantity > 0 &&
                                    b.Id == line.SourceBatchId)
                         .FirstOrDefault();
 
-                    // Если не нашли по SourceBatchId, ищем первую доступную партию
                     if (batch == null && line.SourceBatchId == null)
                     {
-                        batch = _db.Batches
-                            .Where(b => b.ProductId == line.ProductId &&
-                                       b.IsActive &&
-                                       b.Quantity > 0)
+                        batch = db.Batches
+                            .Where(b => b.ProductId == line.ProductId && b.IsActive && b.Quantity > 0)
                             .OrderBy(b => b.ExpirationDate)
                             .FirstOrDefault();
                     }
 
-                    // Рассчитываем сумму для строки
                     decimal sellingPrice = line.SellingPrice ?? batch?.SellingPrice ?? 0m;
                     decimal lineAmount = sellingPrice * line.Quantity;
                     totalAmount += lineAmount;
@@ -485,14 +422,13 @@ public class DocumentService
                         SourceBatchId = line.SourceBatchId ?? batch?.Id
                     };
 
-                    _db.DocumentLines.Add(documentLine);
+                    db.DocumentLines.Add(documentLine);
                 }
             }
 
-            // Устанавливаем сумму документа
             document.Amount = totalAmount;
 
-            _db.SaveChanges();
+            db.SaveChanges();
             transaction.Commit();
 
             GetAll();
@@ -505,14 +441,16 @@ public class DocumentService
             throw new InvalidOperationException($"Ошибка при создании акта списания: {ex.Message}", ex);
         }
     }
+
     public int CreateQuantityCorrection(int originalDocumentId, string reason,
                                         List<QuantityCorrection> corrections)
     {
-        using var transaction = _db.Database.BeginTransaction();
+        using var db = new PharmacyWarehouseContext();
+        using var transaction = db.Database.BeginTransaction();
 
         try
         {
-            var originalDoc = _db.Documents
+            var originalDoc = db.Documents
                 .Include(d => d.DocumentLines)
                     .ThenInclude(l => l.CreatedBatch)
                 .FirstOrDefault(d => d.Id == originalDocumentId);
@@ -523,7 +461,7 @@ public class DocumentService
             var correctionDoc = new Document
             {
                 Type = DocumentType.Correction,
-                Number = GenerateDocumentNumber(DocumentType.Correction),
+                Number = GenerateDocumentNumber(DocumentType.Correction, db),
                 Date = DateTime.Now,
                 OriginalDocumentId = originalDocumentId,
                 CorrectionType = Models.CorrectionType.Quantity,
@@ -533,8 +471,8 @@ public class DocumentService
                 Status = DocumentStatus.Draft
             };
 
-            _db.Documents.Add(correctionDoc);
-            _db.SaveChanges();
+            db.Documents.Add(correctionDoc);
+            db.SaveChanges();
 
             decimal totalAmount = 0;
 
@@ -553,7 +491,6 @@ public class DocumentService
                 if (newQuantity < 0)
                     throw new Exception($"Количество не может быть отрицательным: {newQuantity}");
 
-                // Обновляем количество в партии
                 batch.Quantity = newQuantity;
 
                 if (batch.Quantity == 0)
@@ -575,9 +512,9 @@ public class DocumentService
 
                 decimal oldTotal = oldQuantity * line.UnitPrice;
                 decimal newTotal = newQuantity * line.UnitPrice;
-                totalAmount += newTotal - oldTotal; 
+                totalAmount += newTotal - oldTotal;
 
-                _db.DocumentLines.Add(correctionLine);
+                db.DocumentLines.Add(correctionLine);
 
                 var log = new BatchCorrectionLog
                 {
@@ -591,7 +528,7 @@ public class DocumentService
                     Reason = reason
                 };
 
-                _db.BatchCorrectionLogs.Add(log);
+                db.BatchCorrectionLogs.Add(log);
             }
 
             correctionDoc.Status = DocumentStatus.Processed;
@@ -599,7 +536,7 @@ public class DocumentService
             correctionDoc.SignedBy = _currentUser;
             correctionDoc.Amount = totalAmount;
 
-            _db.SaveChanges();
+            db.SaveChanges();
             transaction.Commit();
 
             GetAll();
@@ -611,10 +548,12 @@ public class DocumentService
             throw new InvalidOperationException($"Ошибка при создании корректировки: {ex.Message}");
         }
     }
+
     public Document? GetDocumentWithCorrections(int documentId)
     {
-        var document = _db.Documents
-            .AsNoTracking() // Важно: отключаем отслеживание
+        using var db = new PharmacyWarehouseContext();
+        var document = db.Documents
+            .AsNoTracking()
             .Include(d => d.Supplier)
             .Include(d => d.DocumentLines)
                 .ThenInclude(l => l.Product)
@@ -627,8 +566,7 @@ public class DocumentService
         if (document == null)
             return null;
 
-        // Явно загружаем корректировки отдельным запросом
-        _db.Entry(document).Collection(d => d.InverseOriginalDocument).Query()
+        db.Entry(document).Collection(d => d.InverseOriginalDocument).Query()
             .Include(c => c.DocumentLines)
                 .ThenInclude(l => l.Product)
             .Load();
@@ -638,7 +576,8 @@ public class DocumentService
 
     public List<Document> GetDocumentCorrections(int documentId)
     {
-        return _db.Documents
+        using var db = new PharmacyWarehouseContext();
+        return db.Documents
             .Where(d => d.OriginalDocumentId == documentId &&
                        d.Type == DocumentType.Correction)
             .Include(d => d.DocumentLines)
@@ -646,7 +585,7 @@ public class DocumentService
             .ToList();
     }
 
-    public string GenerateDocumentNumber(DocumentType type)
+    public string GenerateDocumentNumber(DocumentType type, PharmacyWarehouseContext context)
     {
         var prefix = type switch
         {
@@ -658,18 +597,25 @@ public class DocumentService
         };
 
         var today = DateTime.Today;
-        int count = _db.Documents
+        int count = context.Documents
             .Count(d => d.Type == type &&
-                       d.Date != default(DateTime)  &&
+                       d.Date != default(DateTime) &&
                        d.Date.Year == today.Year &&
                        d.Date.Month == today.Month) + 1;
 
         return $"{prefix}-{today:yyyyMM}-{count:D3}";
     }
 
+    public string GenerateDocumentNumber(DocumentType type)
+    {
+        using var db = new PharmacyWarehouseContext();
+        return GenerateDocumentNumber(type, db);
+    }
+
     public void GetAll()
     {
-        var documents = _db.Documents
+        using var db = new PharmacyWarehouseContext();
+        var documents = db.Documents
             .Include(d => d.Supplier)
             .Include(d => d.DocumentLines)
                 .ThenInclude(dl => dl.Product)
@@ -691,7 +637,8 @@ public class DocumentService
 
     public Document? GetById(int id)
     {
-        return _db.Documents
+        using var db = new PharmacyWarehouseContext();
+        return db.Documents
             .Include(d => d.Supplier)
             .Include(d => d.DocumentLines)
                 .ThenInclude(dl => dl.Product)
@@ -704,11 +651,12 @@ public class DocumentService
 
     public int CreateIncomingDocument(Document document, List<DocumentLine> documentLines)
     {
-        using var transaction = _db.Database.BeginTransaction();
+        using var db = new PharmacyWarehouseContext();
+        using var transaction = db.Database.BeginTransaction();
 
         try
         {
-            if (document.Id == 0) 
+            if (document.Id == 0)
             {
                 if (string.IsNullOrWhiteSpace(document.Number))
                 {
@@ -717,11 +665,11 @@ public class DocumentService
                     document.Number = $"ПР-{date:MMyy}-{count + 1:D4}";
                 }
 
-                _db.Documents.Add(document);
+                db.Documents.Add(document);
             }
-            else 
+            else
             {
-                var existingDocument = _db.Documents
+                var existingDocument = db.Documents
                     .Include(d => d.DocumentLines)
                     .FirstOrDefault(d => d.Id == document.Id);
 
@@ -738,63 +686,74 @@ public class DocumentService
                 existingDocument.SignedBy = document.SignedBy;
                 existingDocument.SignedAt = document.SignedAt;
 
-                _db.DocumentLines.RemoveRange(existingDocument.DocumentLines);
+                db.DocumentLines.RemoveRange(existingDocument.DocumentLines);
 
                 document = existingDocument;
             }
 
-            _db.SaveChanges();
+            db.SaveChanges();
 
             decimal totalAmount = 0;
 
             foreach (var line in documentLines)
             {
-                line.DocumentId = document.Id;
+                var newLine = new DocumentLine
+                {
+                    DocumentId = document.Id,
+                    ProductId = line.ProductId,
+                    Quantity = line.Quantity,
+                    UnitPrice = line.UnitPrice,
+                    SellingPrice = line.SellingPrice,
+                    Series = line.Series,
+                    ExpirationDate = line.ExpirationDate,
+                    Notes = line.Notes,
+                    Sgtin = line.Sgtin
+                };
 
                 if (document.Status == DocumentStatus.Processed)
                 {
                     var batch = new Batch
                     {
-                        ProductId = line.ProductId,
+                        ProductId = newLine.ProductId,
                         SupplierId = document.SupplierId ?? 0,
-                        Series = line.Series ?? "БЕЗ СЕРИИ",
-                        ExpirationDate = line.ExpirationDate ?? DateOnly.FromDateTime(DateTime.Now.AddYears(1)),
-                        PurchasePrice = line.UnitPrice,
-                        SellingPrice = line.SellingPrice ?? line.UnitPrice * 1.3m,
-                        Quantity = line.Quantity,
+                        Series = newLine.Series ?? "БЕЗ СЕРИИ",
+                        ExpirationDate = newLine.ExpirationDate ?? DateOnly.FromDateTime(DateTime.Now.AddYears(1)),
+                        PurchasePrice = newLine.UnitPrice,
+                        SellingPrice = newLine.SellingPrice ?? newLine.UnitPrice * 1.3m,
+                        Quantity = newLine.Quantity,
                         ArrivalDate = DateOnly.FromDateTime(document.Date),
                         IncomingDocumentId = document.Id,
                         IsActive = true
                     };
 
-                    _db.Batches.Add(batch);
-                    _db.SaveChanges();
+                    db.Batches.Add(batch);
+                    db.SaveChanges();
 
-                    line.CreatedBatchId = batch.Id;
+                    newLine.CreatedBatchId = batch.Id;
 
-                    if (!string.IsNullOrEmpty(line.Sgtin))
+                    if (!string.IsNullOrEmpty(newLine.Sgtin))
                     {
                         var mdlpSgtin = new MdlpSgtin
                         {
-                            Sgtin = line.Sgtin,
-                            Gtin = line.Sgtin.Substring(0, 14),
-                            SerialNumber = line.Sgtin.Substring(14),
-                            ProductId = line.ProductId,
+                            Sgtin = newLine.Sgtin,
+                            Gtin = newLine.Sgtin.Substring(0, 14),
+                            SerialNumber = newLine.Sgtin.Substring(14),
+                            ProductId = newLine.ProductId,
                             BatchId = batch.Id,
                             Status = "InCirculation",
                             CreatedAt = DateTime.Now
                         };
-                        _db.MdlpSgtins.Add(mdlpSgtin);
-                        _db.SaveChanges();
+                        db.MdlpSgtins.Add(mdlpSgtin);
+                        db.SaveChanges();
                     }
                 }
 
-                _db.DocumentLines.Add(line);
-                totalAmount += line.UnitPrice * line.Quantity;
+                db.DocumentLines.Add(newLine);
+                totalAmount += newLine.UnitPrice * newLine.Quantity;
             }
 
             document.Amount = totalAmount;
-            _db.SaveChanges();
+            db.SaveChanges();
 
             transaction.Commit();
             GetAll();
@@ -810,11 +769,12 @@ public class DocumentService
     public int CreatePriceCorrection(int originalDocumentId, string reason,
                                  List<PriceCorrection> corrections)
     {
-        using var transaction = _db.Database.BeginTransaction();
+        using var db = new PharmacyWarehouseContext();
+        using var transaction = db.Database.BeginTransaction();
 
         try
         {
-            var originalDoc = _db.Documents
+            var originalDoc = db.Documents
                 .Include(d => d.DocumentLines)
                     .ThenInclude(l => l.CreatedBatch)
                 .FirstOrDefault(d => d.Id == originalDocumentId);
@@ -825,18 +785,18 @@ public class DocumentService
             var correctionDoc = new Document
             {
                 Type = DocumentType.Correction,
-                Number = GenerateDocumentNumber(DocumentType.Correction),
+                Number = GenerateDocumentNumber(DocumentType.Correction, db),
                 Date = DateTime.Now,
                 OriginalDocumentId = originalDocumentId,
-                CorrectionType = Models.CorrectionType.Price, // <-- Важно!
+                CorrectionType = Models.CorrectionType.Price,
                 CorrectionReason = reason,
                 CreatedAt = DateTime.Now,
                 CreatedBy = _currentUser,
                 Status = DocumentStatus.Draft
             };
 
-            _db.Documents.Add(correctionDoc);
-            _db.SaveChanges();
+            db.Documents.Add(correctionDoc);
+            db.SaveChanges();
 
             decimal totalAmount = 0;
 
@@ -855,14 +815,13 @@ public class DocumentService
                 if (newPrice < 0)
                     throw new Exception($"Цена не может быть отрицательной: {newPrice}");
 
-                // Обновляем цену в партии
                 batch.SellingPrice = newPrice;
 
                 var correctionLine = new DocumentLine
                 {
                     DocumentId = correctionDoc.Id,
                     ProductId = line.ProductId,
-                    Quantity = line.Quantity, // Используем оригинальное количество
+                    Quantity = line.Quantity,
                     UnitPrice = line.UnitPrice,
                     SellingPrice = newPrice,
                     Series = batch.Series,
@@ -873,12 +832,11 @@ public class DocumentService
                     CreatedBatchId = batch.Id
                 };
 
-                // Считаем разницу в сумме
                 decimal oldTotal = line.Quantity * oldPrice;
                 decimal newTotal = line.Quantity * newPrice;
                 totalAmount += newTotal - oldTotal;
 
-                _db.DocumentLines.Add(correctionLine);
+                db.DocumentLines.Add(correctionLine);
 
                 var log = new BatchCorrectionLog
                 {
@@ -892,7 +850,7 @@ public class DocumentService
                     Reason = reason
                 };
 
-                _db.BatchCorrectionLogs.Add(log);
+                db.BatchCorrectionLogs.Add(log);
             }
 
             correctionDoc.Status = DocumentStatus.Processed;
@@ -900,7 +858,7 @@ public class DocumentService
             correctionDoc.SignedBy = _currentUser;
             correctionDoc.Amount = totalAmount;
 
-            _db.SaveChanges();
+            db.SaveChanges();
             transaction.Commit();
 
             GetAll();
@@ -915,20 +873,19 @@ public class DocumentService
 
     public bool UpdateDocument(Document document, List<DocumentLine> documentLines)
     {
-        using var transaction = _db.Database.BeginTransaction();
+        using var db = new PharmacyWarehouseContext();
+        using var transaction = db.Database.BeginTransaction();
 
         try
         {
-            // Находим существующий документ с загрузкой связанных данных
-            var existingDocument = _db.Documents
+            var existingDocument = db.Documents
                 .Include(d => d.DocumentLines)
-                    .ThenInclude(dl => dl.CreatedBatch) // Правильный синтаксис для ThenInclude
+                    .ThenInclude(dl => dl.CreatedBatch)
                 .FirstOrDefault(d => d.Id == document.Id);
 
             if (existingDocument == null)
                 return false;
 
-            // Обновляем свойства документа
             existingDocument.Date = document.Date;
             existingDocument.SupplierId = document.SupplierId;
             existingDocument.SupplierInvoiceNumber = document.SupplierInvoiceNumber;
@@ -942,59 +899,63 @@ public class DocumentService
             if (document.SignedAt.HasValue)
                 existingDocument.SignedAt = document.SignedAt;
 
-            // Удаляем старые строки и связанные партии (если есть)
             foreach (var oldLine in existingDocument.DocumentLines.ToList())
             {
-                // Если была создана партия - удаляем её
                 if (oldLine.CreatedBatchId.HasValue)
                 {
-                    var batch = _db.Batches.FirstOrDefault(b => b.Id == oldLine.CreatedBatchId.Value);
+                    var batch = db.Batches.FirstOrDefault(b => b.Id == oldLine.CreatedBatchId.Value);
                     if (batch != null)
-                    {
-                        _db.Batches.Remove(batch);
-                    }
+                        db.Batches.Remove(batch);
                 }
-                _db.DocumentLines.Remove(oldLine);
+                db.DocumentLines.Remove(oldLine);
             }
 
-            _db.SaveChanges();
+            db.SaveChanges();
 
-            // Добавляем новые строки
             decimal totalAmount = 0;
             foreach (var line in documentLines)
             {
-                line.DocumentId = existingDocument.Id;
-                line.Id = 0; // Сбрасываем ID, чтобы создать новую запись
+                var newLine = new DocumentLine
+                {
+                    DocumentId = existingDocument.Id,
+                    ProductId = line.ProductId,
+                    Quantity = line.Quantity,
+                    UnitPrice = line.UnitPrice,
+                    SellingPrice = line.SellingPrice,
+                    Series = line.Series,
+                    ExpirationDate = line.ExpirationDate,
+                    Notes = line.Notes,
+                    Sgtin = line.Sgtin
+                };
 
-                // Если документ проводится - создаем партию
                 if (existingDocument.Status == DocumentStatus.Processed)
                 {
                     var batch = new Batch
                     {
-                        ProductId = line.ProductId,
+                        ProductId = newLine.ProductId,
                         SupplierId = existingDocument.SupplierId ?? 0,
-                        Series = line.Series ?? "БЕЗ СЕРИИ",
-                        ExpirationDate = line.ExpirationDate ?? DateOnly.FromDateTime(DateTime.Now.AddYears(1)),
-                        PurchasePrice = line.UnitPrice,
-                        SellingPrice = line.SellingPrice ?? line.UnitPrice * 1.3m,
-                        Quantity = line.Quantity,
+                        Series = newLine.Series ?? "БЕЗ СЕРИИ",
+                        ExpirationDate = newLine.ExpirationDate ?? DateOnly.FromDateTime(DateTime.Now.AddYears(1)),
+                        PurchasePrice = newLine.UnitPrice,
+                        SellingPrice = newLine.SellingPrice ?? newLine.UnitPrice * 1.3m,
+                        Quantity = newLine.Quantity,
                         ArrivalDate = DateOnly.FromDateTime(existingDocument.Date),
                         IncomingDocumentId = existingDocument.Id,
                         IsActive = true
                     };
 
-                    _db.Batches.Add(batch);
-                    _db.SaveChanges();
+                    db.Batches.Add(batch);
+                    db.SaveChanges();
 
-                    line.CreatedBatchId = batch.Id;
+                    newLine.CreatedBatchId = batch.Id;
                 }
 
-                _db.DocumentLines.Add(line);
-                totalAmount += line.UnitPrice * line.Quantity;
+                db.DocumentLines.Add(newLine);
+                totalAmount += newLine.UnitPrice * newLine.Quantity;
             }
 
             existingDocument.Amount = totalAmount;
-            _db.SaveChanges();
+            db.SaveChanges();
 
             transaction.Commit();
             GetAll();
@@ -1007,10 +968,13 @@ public class DocumentService
         }
     }
 
-    public int GetDocumentsCount(int month, int year)
+    public int GetDocumentsCount(int month, int year, DocumentType? type = null, PharmacyWarehouseContext? context = null)
     {
-        return _db.Documents
-            .Count(d => d.Date.Month == month && d.Date.Year == year);
+        var db = context ?? new PharmacyWarehouseContext();
+        var query = db.Documents.Where(d => d.Date.Month == month && d.Date.Year == year);
+        if (type.HasValue)
+            query = query.Where(d => d.Type == type.Value);
+        return query.Count();
     }
 
     public List<Document> GetIncoming() =>
@@ -1021,6 +985,51 @@ public class DocumentService
 
     public List<Document> GetWriteOffs() =>
         Documents.Where(d => d.Type == DocumentType.WriteOff).ToList();
+
+    public bool ProcessDocument(int id, string signedBy)
+    {
+        using var db = new PharmacyWarehouseContext();
+        var document = db.Documents.FirstOrDefault(d => d.Id == id);
+        if (document == null) return false;
+
+        document.Status = DocumentStatus.Processed;
+        document.SignedAt = DateTime.Now;
+        document.SignedBy = signedBy;
+
+        db.SaveChanges();
+        GetAll();
+        return true;
+    }
+
+    public bool BlockDocument(int id)
+    {
+        using var db = new PharmacyWarehouseContext();
+        var document = db.Documents.FirstOrDefault(d => d.Id == id);
+        if (document == null) return false;
+
+        document.Status = DocumentStatus.Blocked;
+
+        db.SaveChanges();
+        GetAll();
+        return true;
+    }
+
+    public bool DeleteDocument(int id)
+    {
+        using var db = new PharmacyWarehouseContext();
+        var document = db.Documents
+            .Include(d => d.DocumentLines)
+            .FirstOrDefault(d => d.Id == id);
+
+        if (document == null) return false;
+
+        db.DocumentLines.RemoveRange(document.DocumentLines);
+        db.Documents.Remove(document);
+
+        db.SaveChanges();
+        GetAll();
+        return true;
+    }
 }
 
 public class QuantityCorrection
@@ -1030,7 +1039,6 @@ public class QuantityCorrection
 }
 public class PriceCorrection
 {
-    public int DocumentLineId { get; set; }  
-    public decimal NewPrice { get; set; }    
+    public int DocumentLineId { get; set; }
+    public decimal NewPrice { get; set; }
 }
-

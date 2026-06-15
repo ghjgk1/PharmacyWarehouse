@@ -392,12 +392,28 @@
 
                         <!-- Поля для добавления товара -->
                         <StackPanel>
-                            <!-- Товар -->
-                            <TextBlock Text="Товар:" 
-                                       Style="{StaticResource BodyText}" 
+                            <!-- Сканирование кода -->
+                            <TextBlock Text="Сканировать код:"
+                                       Style="{StaticResource BodyText}"
                                        FontWeight="SemiBold"
                                        Margin="0,0,0,4"/>
-                            <ComboBox x:Name="cmbProduct" 
+                            <TextBox x:Name="txtScanCode"
+                                     Height="36"
+                                     Margin="0,0,0,12"
+                                     KeyDown="TxtScanCode_KeyDown"/>
+                            <TextBlock x:Name="txtScanError"
+                                       Text=""
+                                       Style="{StaticResource Caption}"
+                                       Foreground="{StaticResource AccentRedBrush}"
+                                       Margin="0,0,0,12"
+                                       Visibility="Collapsed"/>
+
+                            <!-- Товар -->
+                            <TextBlock Text="Товар:"
+                                       Style="{StaticResource BodyText}"
+                                       FontWeight="SemiBold"
+                                       Margin="0,0,0,4"/>
+                            <ComboBox x:Name="cmbProduct"
                                      DisplayMemberPath="Name"
                                      IsEditable="True"
                                      IsTextSearchEnabled="True"
@@ -531,11 +547,22 @@
                                        FontWeight="SemiBold"
                                        Margin="0,0,0,4"
                                        Visibility="Collapsed"/>
-                            <ComboBox x:Name="cmbSgtin" 
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <ComboBox x:Name="cmbSgtin" 
                                      DisplayMemberPath="Sgtin"
                                      Height="36"
-                                     Margin="0,0,0,12"
                                      Visibility="Collapsed"/>
+                                <TextBox x:Name="txtSgtinManual" 
+                                     ToolTip="Или введите SGTIN вручную"
+                                     Height="36"
+                                     Visibility="Collapsed"
+                                     Margin="8,0,0,0"
+                                     Grid.Column="1"/>
+                            </Grid>
 
                             <!-- Причина списания для этой позиции -->
 

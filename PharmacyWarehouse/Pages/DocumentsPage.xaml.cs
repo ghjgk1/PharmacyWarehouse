@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using PharmacyWarehouse.Models;
 using PharmacyWarehouse.Pages;
 using PharmacyWarehouse.Services;
@@ -17,6 +17,7 @@ namespace PharmacyWarehouse.Pages
     public partial class DocumentsPage : Page
     {
         private readonly DocumentService _documentService;
+        private readonly InventoryService _inventoryService;
         private ObservableCollection<DocumentViewModel> _documents;
         private ICollectionView _documentsView;
         private readonly AuthService _authService;
@@ -37,6 +38,7 @@ namespace PharmacyWarehouse.Pages
         {
             InitializeComponent();
             _documentService = App.ServiceProvider.GetService<DocumentService>();
+            _inventoryService = App.ServiceProvider.GetService<InventoryService>();
             _authService = App.ServiceProvider.GetService<AuthService>();
             _wordGenerator = App.ServiceProvider.GetService<IWordDocumentGenerator>();
             _currentUser = AuthService.CurrentUser?.FullName ?? "Неизвестный пользователь";
@@ -76,6 +78,18 @@ namespace PharmacyWarehouse.Pages
                     _documents.Add(viewModel);
                 }
 
+                var allInventories = _inventoryService.GetAll()
+                    .OrderByDescending(i => i.InventoryDate)
+                    .ThenByDescending(i => i.Id);
+
+                foreach (var inventory in allInventories)
+                {
+                    var viewModel = new DocumentViewModel(inventory);
+                    _allDocuments.Add(viewModel);
+                    _documents.Add(viewModel);
+                }
+
+                _allDocuments = _allDocuments.OrderByDescending(d => d.Date).ThenByDescending(d => d.Id).ToList();
                 _filteredDocuments = _allDocuments.ToList();
                 _currentPage = 1;
 
@@ -146,6 +160,7 @@ namespace PharmacyWarehouse.Pages
             txtArrivalCount.Text = $"Приход: {_documents.Count(d => d.Type == DocumentType.Incoming)}";
             txtOutgoingCount.Text = $"Расход: {_documents.Count(d => d.Type == DocumentType.Outgoing)}";
             txtWriteOffCount.Text = $"Списание: {_documents.Count(d => d.Type == DocumentType.WriteOff)}";
+            txtInventoryCount.Text = $"Инвентаризации: {_documents.Count(d => d.Type == DocumentType.Inventory)}";
 
             txtDraftCount.Text = $"Черновики: {_documents.Count(d => d.Status == DocumentStatus.Draft)}";
             txtProcessedCount.Text = $"Проведенные: {_documents.Count(d => d.Status == DocumentStatus.Processed)}";
@@ -222,6 +237,23 @@ namespace PharmacyWarehouse.Pages
         {
             if (dgDocuments.SelectedItem is DocumentViewModel selectedDoc)
             {
+                if (selectedDoc.IsInventory)
+                {
+                    // Открываем окно редактирования инвентаризации
+                    var inventory = _inventoryService.GetWithLines(selectedDoc.Id);
+                    if (inventory == null)
+                    {
+                        MessageBox.Show("Акт инвентаризации не найден",
+                            "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                        return;
+                    }
+                    var window = new InventoryEditWindow(inventory);
+                    window.Owner = Window.GetWindow(this);
+                    if (window.ShowDialog() == true)
+                        LoadDocuments();
+                    return;
+                }
+
                 // Проверяем, можно ли редактировать (только черновики)
                 if (selectedDoc.Status != DocumentStatus.Draft)
                 {
@@ -263,14 +295,48 @@ namespace PharmacyWarehouse.Pages
                 return;
             }
 
-            ViewDocumentDetails(selectedDocVM.Id);
+            if (selectedDocVM.IsInventory)
+            {
+                var inventory = _inventoryService.GetWithLines(selectedDocVM.Id);
+                if (inventory == null)
+                {
+                    MessageBox.Show("Акт инвентаризации не найден",
+                        "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+                var window = new InventoryEditWindow(inventory);
+                window.Owner = Window.GetWindow(this);
+                if (window.ShowDialog() == true)
+                    LoadDocuments();
+            }
+            else
+            {
+                ViewDocumentDetails(selectedDocVM.Id);
+            }
         }
 
         private void ViewDocument_Click(object sender, RoutedEventArgs e)
         {
             if (dgDocuments.SelectedItem is DocumentViewModel selectedDocVM)
             {
-                ViewDocumentDetails(selectedDocVM.Id);
+                if (selectedDocVM.IsInventory)
+                {
+                    var inventory = _inventoryService.GetWithLines(selectedDocVM.Id);
+                    if (inventory == null)
+                    {
+                        MessageBox.Show("Акт инвентаризации не найден",
+                            "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                        return;
+                    }
+                    var window = new InventoryEditWindow(inventory);
+                    window.Owner = Window.GetWindow(this);
+                    if (window.ShowDialog() == true)
+                        LoadDocuments();
+                }
+                else
+                {
+                    ViewDocumentDetails(selectedDocVM.Id);
+                }
             }
         }
 
@@ -303,6 +369,13 @@ namespace PharmacyWarehouse.Pages
         {
             if (dgDocuments.SelectedItem is DocumentViewModel selectedDoc)
             {
+                if (selectedDoc.IsInventory)
+                {
+                    MessageBox.Show("Акты инвентаризации проводятся через окно редактирования инвентаризации",
+                        "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
                 if (selectedDoc.Status != DocumentStatus.Draft)
                 {
                     MessageBox.Show("Провести можно только черновики",
@@ -321,16 +394,9 @@ namespace PharmacyWarehouse.Pages
                 {
                     try
                     {
-                        var document = _documentService.GetById(selectedDoc.Id);
-                        if (document != null)
+                        if (_documentService.ProcessDocument(selectedDoc.Id, _currentUser))
                         {
-                            document.Status = DocumentStatus.Processed;
-                            document.SignedAt = DateTime.Now;
-                            document.SignedBy = _currentUser;
-
-                            _documentService.Commit();
                             LoadDocuments(); // Обновляем список
-
                             MessageBox.Show($"Документ №{selectedDoc.Number} проведен",
                                 "Успешно", MessageBoxButton.OK, MessageBoxImage.Information);
                         }
@@ -353,6 +419,13 @@ namespace PharmacyWarehouse.Pages
         {
             if (dgDocuments.SelectedItem is DocumentViewModel selectedDoc)
             {
+                if (selectedDoc.IsInventory)
+                {
+                    MessageBox.Show("Акты инвентаризации нельзя блокировать",
+                        "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
                 var result = MessageBox.Show(
                     $"Заблокировать документ №{selectedDoc.Number}?\n" +
                     $"После блокировки операции по документу будут невозможны.",
@@ -364,13 +437,9 @@ namespace PharmacyWarehouse.Pages
                 {
                     try
                     {
-                        var document = _documentService.GetById(selectedDoc.Id);
-                        if (document != null)
+                        if (_documentService.BlockDocument(selectedDoc.Id))
                         {
-                            document.Status = DocumentStatus.Blocked;
-                            _documentService.Commit();
                             LoadDocuments(); // Обновляем список
-
                             MessageBox.Show($"Документ №{selectedDoc.Number} заблокирован",
                                 "Успешно", MessageBoxButton.OK, MessageBoxImage.Information);
                         }
@@ -714,27 +783,9 @@ namespace PharmacyWarehouse.Pages
                 {
                     try
                     {
-                        var document = _documentService.GetById(selectedDoc.Id);
-                        if (document != null)
+                        if (_documentService.DeleteDocument(selectedDoc.Id))
                         {
-                            // Удаляем связанные строки документа
-                            var lines = _documentService.Documents
-                                .Where(d => d.Id == selectedDoc.Id)
-                                .SelectMany(d => d.DocumentLines)
-                                .ToList();
-
-                            foreach (var line in lines)
-                            {
-                                _documentService.Documents.FirstOrDefault(d => d.Id == selectedDoc.Id)
-                                    ?.DocumentLines.Remove(line);
-                            }
-
-                            // Удаляем сам документ
-                            _documentService.Documents.Remove(document);
-                            _documentService.Commit();
-
                             LoadDocuments(); // Обновляем список
-
                             MessageBox.Show($"Документ №{selectedDoc.Number} удален",
                                 "Успешно", MessageBoxButton.OK, MessageBoxImage.Information);
                         }
@@ -868,7 +919,8 @@ namespace PharmacyWarehouse.Pages
 
     public class DocumentViewModel : INotifyPropertyChanged
     {
-        private readonly Document _document;
+        private readonly Document? _document;
+        private readonly Inventory? _inventory;
         private readonly string _correctionReason;
         private readonly string _supplierName;
         private readonly string _customerName;
@@ -880,13 +932,17 @@ namespace PharmacyWarehouse.Pages
         private readonly string _typeIcon;
         private readonly string _groupKey;
         private readonly string _statusDisplayName;
+        private readonly string _statusIcon;
         private readonly string _baseDocumentInfo;
         private readonly string _correctionTypeDisplayName;
-        public string Number => _document.Number;
+        private readonly bool _isInventory;
+
+        public string Number => _isInventory ? _inventory!.Number : _document!.Number;
 
         public DocumentViewModel(Document document)
         {
             _document = document ?? throw new ArgumentNullException(nameof(document));
+            _isInventory = false;
 
             _correctionReason = _document.CorrectionReason ?? "-";
             _supplierName = _document.Supplier?.Name ?? "-";
@@ -899,17 +955,41 @@ namespace PharmacyWarehouse.Pages
             _typeIcon = GetTypeIcon();
             _groupKey = GetGroupKey();
             _statusDisplayName = GetStatusDisplayName();
+            _statusIcon = GetStatusIcon();
             _baseDocumentInfo = GetBaseDocumentInfo();
             _correctionTypeDisplayName = GetCorrectionTypeDisplayName();
         }
 
+        public DocumentViewModel(Inventory inventory)
+        {
+            _inventory = inventory ?? throw new ArgumentNullException(nameof(inventory));
+            _isInventory = true;
+
+            _correctionReason = "-";
+            _supplierName = "-";
+            _customerName = "-";
+            _notes = _inventory.Notes ?? "-";
+            _amount = 0;
+            _writeOffReason = "-";
+            _linesCount = _inventory.InventoryLines?.Count ?? 0;
+            _typeDisplayName = "Акт инвентаризации";
+            _typeIcon = "📋";
+            _groupKey = "📋 Акты инвентаризации";
+            _statusDisplayName = GetInventoryStatusDisplayName();
+            _statusIcon = GetInventoryStatusIcon();
+            _baseDocumentInfo = "-";
+            _correctionTypeDisplayName = "-";
+        }
+
         // Все свойства только для чтения
-        public int Id => _document.Id;
-        public DateTime Date => _document.Date;
-        public DateTime CreatedAt => _document.CreatedAt;
-        public string CreatedBy => _document.CreatedBy;
-        public DocumentType Type => _document.Type;
-        public DocumentStatus Status => _document.Status;
+        public int Id => _isInventory ? _inventory!.Id : _document!.Id;
+        public DateTime Date => _isInventory ? _inventory!.InventoryDate.ToDateTime(TimeOnly.MinValue) : _document!.Date;
+        public DateTime CreatedAt => _isInventory ? _inventory!.CreatedAt : _document!.CreatedAt;
+        public string CreatedBy => _isInventory ? _inventory!.CreatedBy : _document!.CreatedBy;
+        public DocumentType Type => _isInventory ? DocumentType.Inventory : _document!.Type;
+        public DocumentStatus Status => _isInventory ? 
+            (_inventory!.Status == "Completed" ? DocumentStatus.Processed : DocumentStatus.Draft) : 
+            _document!.Status;
         public string CustomerName => _customerName;
         public string Notes => _notes;
         public decimal Amount => _amount;
@@ -917,60 +997,96 @@ namespace PharmacyWarehouse.Pages
         public string WriteOffReason => _writeOffReason;
         public string CorrectionReason => _correctionReason;
         public int LinesCount => _linesCount;
-        public int? OriginalDocumentId => _document.OriginalDocumentId;
+        public int? OriginalDocumentId => _isInventory ? null : _document!.OriginalDocumentId;
         public string CorrectionTypeDisplayName => _correctionTypeDisplayName;
         public string TypeDisplayName => _typeDisplayName;
         public string TypeIcon => _typeIcon;
         public string GroupKey => _groupKey;
         public string BaseDocumentInfo => _baseDocumentInfo;
         public string StatusDisplayName => _statusDisplayName;
-        public CorrectionType? CorrectionType => _document.CorrectionType;
+        public string StatusIcon => _statusIcon;
+        public CorrectionType? CorrectionType => _isInventory ? null : _document!.CorrectionType;
+        public bool IsInventory => _isInventory;
 
         // Вспомогательные методы для вычисляемых свойств
         private string GetTypeDisplayName()
         {
-            return _document.Type switch
+            return _document!.Type switch
             {
                 DocumentType.Incoming => "Приходная накладная",
                 DocumentType.Outgoing => "Расходная накладная",
                 DocumentType.WriteOff => "Акт списания",
                 DocumentType.Correction => "Корректировка",
+                DocumentType.Inventory => "Акт инвентаризации",
                 _ => _document.Type.ToString()
             };
         }
 
         private string GetTypeIcon()
         {
-            return _document.Type switch
+            return _document!.Type switch
             {
                 DocumentType.Incoming => "📥",
                 DocumentType.Outgoing => "📤",
                 DocumentType.WriteOff => "🗑️",
                 DocumentType.Correction => "✏️",
+                DocumentType.Inventory => "📋",
                 _ => "📄"
             };
         }
 
         private string GetGroupKey()
         {
-            return _document.Type switch
+            return _document!.Type switch
             {
                 DocumentType.Incoming => "📥 Приходные накладные",
                 DocumentType.Outgoing => "📤 Расходные накладные",
                 DocumentType.WriteOff => "🗑️ Акты списания",
                 DocumentType.Correction => "✏️ Корректировки",
+                DocumentType.Inventory => "📋 Акты инвентаризации",
                 _ => _document.Type.ToString()
             };
         }
 
         private string GetStatusDisplayName()
         {
-            return _document.Status switch
+            return _document!.Status switch
             {
                 DocumentStatus.Draft => "Черновик",
                 DocumentStatus.Processed => "Проведен",
                 DocumentStatus.Blocked => "Заблокирован",
                 _ => _document.Status.ToString()
+            };
+        }
+        
+        private string GetStatusIcon()
+        {
+            return _document!.Status switch
+            {
+                DocumentStatus.Draft => "📝",
+                DocumentStatus.Processed => "✅",
+                DocumentStatus.Blocked => "🚫",
+                _ => ""
+            };
+        }
+        
+        private string GetInventoryStatusDisplayName()
+        {
+            return _inventory!.Status switch
+            {
+                "Draft" => "Черновик",
+                "Completed" => "Завершен",
+                _ => _inventory.Status
+            };
+        }
+        
+        private string GetInventoryStatusIcon()
+        {
+            return _inventory!.Status switch
+            {
+                "Draft" => "📝",
+                "Completed" => "✅",
+                _ => ""
             };
         }
 

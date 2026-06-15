@@ -8,7 +8,6 @@ namespace PharmacyWarehouse.Services
 
     public class SupplierService
     {
-        private readonly PharmacyWarehouseContext _db = BaseDbService.Instance.Context;
         public ObservableCollection<Supplier> Suppliers { get; set; } = new();
 
         public SupplierService()
@@ -16,10 +15,9 @@ namespace PharmacyWarehouse.Services
             GetAll();
         }
 
-        public int Commit() => _db.SaveChanges();
-
         public void Add(Supplier supplier)
         {
+            using var db = new PharmacyWarehouseContext();
             var _supplier = new Supplier
             {
                 Name = supplier.Name,
@@ -29,14 +27,17 @@ namespace PharmacyWarehouse.Services
                 Address = supplier.Address
             };
 
-            _db.Suppliers.Add(_supplier);
-            if (Commit() > 0)
-                Suppliers.Add(_supplier);
+            db.Suppliers.Add(_supplier);
+            if (db.SaveChanges() > 0)
+            {
+                GetAll();
+            }
         }
 
         public void GetAll()
         {
-            var suppliers = _db.Suppliers
+            using var db = new PharmacyWarehouseContext();
+            var suppliers = db.Suppliers
                 .Include(s => s.Batches)
                 .Include(s => s.Documents)
                 .ToList();
@@ -50,19 +51,20 @@ namespace PharmacyWarehouse.Services
 
         public void Remove(Supplier supplier)
         {
-            var existing = _db.Suppliers.Find(supplier.Id);
+            using var db = new PharmacyWarehouseContext();
+            var existing = db.Suppliers.Find(supplier.Id);
             if (existing != null)
             {
-                _db.Suppliers.Remove(existing);
-                if (Commit() > 0)
-                    if (Suppliers.Contains(supplier))
-                        Suppliers.Remove(supplier);
+                db.Suppliers.Remove(existing);
+                if (db.SaveChanges() > 0)
+                    GetAll();
             }
         }
 
         public Supplier? GetById(int id)
         {
-            return _db.Suppliers
+            using var db = new PharmacyWarehouseContext();
+            return db.Suppliers
                 .Include(s => s.Batches)
                 .Include(s => s.Documents)
                 .FirstOrDefault(s => s.Id == id);
@@ -70,7 +72,8 @@ namespace PharmacyWarehouse.Services
 
         public void Update(Supplier supplier)
         {
-            var existing = _db.Suppliers.Find(supplier.Id);
+            using var db = new PharmacyWarehouseContext();
+            var existing = db.Suppliers.Find(supplier.Id);
             if (existing != null)
             {
                 existing.Name = supplier.Name;
@@ -79,13 +82,9 @@ namespace PharmacyWarehouse.Services
                 existing.Address = supplier.Address;
                 existing.IsActive = supplier.IsActive;
 
-                if (Commit() > 0)
+                if (db.SaveChanges() > 0)
                 {
-                    var index = Suppliers.IndexOf(Suppliers.FirstOrDefault(s => s.Id == supplier.Id));
-                    if (index >= 0)
-                    {
-                        Suppliers[index] = existing;
-                    }
+                    GetAll();
                 }
             }
         }

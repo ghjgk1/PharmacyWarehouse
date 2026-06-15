@@ -32,7 +32,7 @@
                            FontWeight="SemiBold"/>
                 <TextBlock x:Name="txtProductDetails" 
                            TextWrapping="Wrap" 
-                           Style="{StaticResource BodyTextSmall}" 
+                           Style="{StaticResource Caption}" 
                            Foreground="Gray"/>
             </StackPanel>
         </Border>
@@ -43,20 +43,18 @@
                 Padding="12" 
                 Margin="0,0,0,12">
             <StackPanel>
-                <TextBlock Text="Сканируйте код" Style="{StaticResource BodyTextSmall}" Foreground="Gray"/>
+                <TextBlock Text="Сканируйте код" Style="{StaticResource Caption}" Foreground="Gray"/>
                 <Grid Margin="0,8,0,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     <TextBox x:Name="txtScan" 
-                             Grid.Column="0"
-                             PlaceholderText="Код DataMatrix..."
-                             Style="{StaticResource TextBox}"
+                             ToolTip="Код DataMatrix..."
                              KeyDown="TxtScan_KeyDown"/>
                     <TextBlock x:Name="txtCount" 
                                Grid.Column="1"
-                               Text="0" 
+                               Text="0/0" 
                                FontSize="24" 
                                FontWeight="Bold" 
                                Foreground="{StaticResource PrimaryBrush}"
@@ -78,7 +76,7 @@
                 </Grid.RowDefinitions>
                 <TextBlock Grid.Row="0" 
                            Text="Сканированные коды:" 
-                           Style="{StaticResource BodyTextSmall}" 
+                           Style="{StaticResource Caption}" 
                            Foreground="Gray"
                            Margin="0,0,0,8"/>
                 <ListBox x:Name="lbCodes" 
@@ -92,13 +90,13 @@
         <!-- Buttons -->
         <StackPanel Grid.Row="4" 
                     Orientation="Horizontal" 
-                    HorizontalAlignment="Right" 
-                    Spacing="8">
+                    HorizontalAlignment="Right">
             <Button x:Name="btnUndo" 
                     Content="Отменить последнее" 
                     Style="{StaticResource OutlineButton}"
                     Click="BtnUndo_Click"
-                    IsEnabled="False"/>
+                    IsEnabled="False"
+                    Margin="0,0,8,0"/>
             <Button Content="ОК" 
                     Style="{StaticResource PrimaryButton}"
                     Click="BtnOk_Click"/>

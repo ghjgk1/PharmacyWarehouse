@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using PharmacyWarehouse.Data;
 using PharmacyWarehouse.Models;
 using PharmacyWarehouse.Pages;
 using PharmacyWarehouse.Services;
@@ -230,7 +231,7 @@ namespace PharmacyWarehouse
 
         private void Document_Click(object sender, RoutedEventArgs e)
         {
-            var page = _serviceProvider.GetService<DocumentsPage>();
+            var page = new DocumentsPage();
             MainFrame.Navigate(page);
 
         }
@@ -256,7 +257,7 @@ namespace PharmacyWarehouse
                 Margin = new Thickness(0, 0, 0, 20)
             };
 
-            var context = BaseDbService.Instance.Context;
+            using var context = new PharmacyWarehouseContext();
             var users = context.Users.ToList();
 
             foreach (var user in users)
