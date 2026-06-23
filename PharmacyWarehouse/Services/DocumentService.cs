@@ -597,13 +597,10 @@ public class DocumentService
         };
 
         var today = DateTime.Today;
-        int count = context.Documents
-            .Count(d => d.Type == type &&
-                       d.Date != default(DateTime) &&
-                       d.Date.Year == today.Year &&
-                       d.Date.Month == today.Month) + 1;
+        var rng = new Random();
+        int randomNum = rng.Next(0, 1000);
 
-        return $"{prefix}-{today:yyyyMM}-{count:D3}";
+        return $"{prefix}-{today:ddMMyy}-{randomNum:D3}";
     }
 
     public string GenerateDocumentNumber(DocumentType type)

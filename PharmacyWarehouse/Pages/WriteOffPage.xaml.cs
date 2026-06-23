@@ -1013,8 +1013,14 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
             // Сохраняем документ
             int documentId = _documentService.CreateWriteOff(_currentDocument, documentLines);
 
-            // Обновляем ID текущего документа и UI
+            // Обновляем ID и номер текущего документа и UI
             _currentDocument.Id = documentId;
+            // Если номер был сгенерирован сервисом, подтягиваем его из БД
+            if (string.IsNullOrEmpty(_currentDocument.Number))
+            {
+                var saved = _documentService.GetById(documentId);
+                if (saved != null) _currentDocument.Number = saved.Number;
+            }
             txtDocNumber.Text = _currentDocument.Number;
 
             ShowInfo($"Черновик акта списания сохранен. Номер: {_currentDocument.Number}");
@@ -1047,6 +1053,8 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
 
         if (result == MessageBoxResult.Yes)
         {
+            // Защита от повторного проведения (двойной клик)
+            btnProcessWriteOff.IsEnabled = false;
             try
             {
                 // Обновляем данные документа
@@ -1083,18 +1091,9 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
                 }
 
                 int documentId;
-                if (_currentDocument.Id == 0) // Новый документ
-                {
-                    documentId = _documentService.CreateWriteOff(_currentDocument, documentLines);
-                    _currentDocument.Id = documentId;
-                    txtDocNumber.Text = _currentDocument.Number;
-                }
-                else // Редактирование существующего
-                {
-                    // Для списания используем тот же метод, что и для расходных накладных
-                    documentId = _documentService.CreateWriteOff(_currentDocument, documentLines);
-                    _currentDocument.Id = documentId;
-                }
+                documentId = _documentService.CreateWriteOff(_currentDocument, documentLines);
+                _currentDocument.Id = documentId;
+                txtDocNumber.Text = _currentDocument.Number;
 
                 // Проверяем, был ли документ уже отправлен в МДЛП
                 using var db7 = new PharmacyWarehouseContext();
@@ -1120,6 +1119,8 @@ public partial class WriteOffPage : Page, INotifyPropertyChanged
             }
             catch (Exception ex)
             {
+                // Возвращаем кнопку при ошибке, чтобы пользователь мог поправить данные и повторить
+                btnProcessWriteOff.IsEnabled = true;
                 ShowError("Ошибка проведения документа", ex.Message);
             }
         }
